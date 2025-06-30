@@ -128,9 +128,12 @@ vec<uptr<Node>> Parser::parse_fnargs() {
 
     // args
     vec<uptr<Node>> res;
-    // do {
-    //     res.push_back(parse_expr());
-    // } while (curtok().type == TType::COMMA);
+    uptr<Node> expr = parse_expr();
+    while (expr) {
+        res.push_back(std::move(expr));
+        if (curtok().type == TType::COMMA) advance(TType::COMMA);
+        expr = parse_expr();
+    }
 
     // rparen
     advance(TType::RPAREN);
