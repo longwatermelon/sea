@@ -16,4 +16,4 @@ obj/src/%.o: src/%.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@ $(LDFLAGS)
 
 clean:
-	-rm *.o sea
+	-rm -rf obj sea
