@@ -1,14 +1,15 @@
 #include "lexer.h"
 #include "util.h"
 #include <cctype>
+// TODO include line info in tokens
 
-Lexer::Lexer(const std::string &prog) : m_prog(prog) {
+Lexer::Lexer(const string &prog) : m_prog(prog) {
     m_ind=0;
     m_line=1;
 }
 
-std::vector<Token> Lexer::tokenize() {
-    std::vector<Token> tokens;
+vec<Token> Lexer::tokenize() {
+    vec<Token> tokens;
     
     while (m_ind < sz(m_prog)) {
         char c = m_prog[m_ind];
@@ -40,12 +41,14 @@ std::vector<Token> Lexer::tokenize() {
         } else if (c == ';') {
             tokens.push_back(Token(TType::SEMI, ";"));
             advance();
+        } else if (c == ',') {
+            tokens.push_back(Token(TType::COMMA, ","));
+            advance();
         } else {
             advance();
         }
     }
 
-    tokens.push_back(Token(TType::EOF_, ""));
     return tokens;
 }
 
@@ -55,8 +58,8 @@ void Lexer::advance() {
     }
 }
 
-std::string Lexer::collect_int() {
-    std::string result;
+string Lexer::collect_int() {
+    string result;
     while (m_ind < sz(m_prog) && std::isdigit(m_prog[m_ind])) {
         result += m_prog[m_ind];
         advance();
@@ -64,8 +67,8 @@ std::string Lexer::collect_int() {
     return result;
 }
 
-std::string Lexer::collect_str() {
-    std::string result;
+string Lexer::collect_str() {
+    string result;
     // opening quote
     advance();
 
@@ -80,8 +83,8 @@ std::string Lexer::collect_str() {
     return result;
 }
 
-std::string Lexer::collect_id() {
-    std::string result;
+string Lexer::collect_id() {
+    string result;
     while (m_ind < sz(m_prog) && (std::isalnum(m_prog[m_ind]) || m_prog[m_ind] == '_')) {
         result += m_prog[m_ind];
         advance();

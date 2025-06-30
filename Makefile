@@ -10,10 +10,10 @@ all:
 	$(MAKE) sea
 
 sea: $(OBJS)
-	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) $^ $(LDFLAGS)
 
 obj/src/%.o: src/%.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@ $(LDFLAGS)
 
 clean:
-	-rm -rf obj sea
+	-rm -rf obj a.out

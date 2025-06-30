@@ -1,19 +1,19 @@
 #pragma once
 #include "token.h"
-#include <vector>
 using ll=long long;
 
-struct Lexer {
-    std::string m_prog;
+class Lexer {
+    string m_prog;
     ll m_ind;
     ll m_line;
 
+public:
     Lexer()=default;
-    Lexer(const std::string &prog);
+    Lexer(const string &prog);
 
-    std::vector<Token> tokenize();
+    vec<Token> tokenize();
     void advance();
-    std::string collect_int();
-    std::string collect_str();
-    std::string collect_id();
+    string collect_int();
+    string collect_str();
+    string collect_id();
 };

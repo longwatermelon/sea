@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include "util.h"
 
 enum class TType {
     ID,
@@ -10,13 +11,13 @@ enum class TType {
     SEMI,
     INT,
     STR,
-    EOF_,
+    COMMA,
 };
 
 struct Token {
     TType type;
-    std::string val;
+    string val;
 
     Token()=default;
-    Token(TType type, const std::string &val) : type(type), val(val) {}
+    Token(TType type, const string &val) : type(type), val(val) {}
 };
