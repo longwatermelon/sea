@@ -113,6 +113,9 @@ uptr<Node> Parser::parse_id() {
         } else if (nxt->type == NType::VAR) {
             res->def_obj = std::move(nxt);
             res->def_as = nullptr;
+        } else if (nxt->type == NType::BINOP && nxt->op_type == "=") {
+            res->def_obj = std::move(nxt);
+            res->def_as = nullptr;
         }
 
         return res;

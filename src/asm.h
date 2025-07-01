@@ -14,8 +14,11 @@ public:
     void gen_fcall(uptr<Node> &fcall);
     void gen_ret(uptr<Node> &ret);
     void gen_val(uptr<Node> &val);
+    // repush to top of stack
+    void gen_var(uptr<Node> &var);
 
     void gen_binop(uptr<Node> &op);
+    void gen_assign(uptr<Node> &op);
 
     // push val to stack, track its offset in addr
     void gen_stack_push(const string &val, int &addr);

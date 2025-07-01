@@ -1,4 +1,5 @@
 #include "asm.h"
+#include <cassert>
 
 string Visitor::gen(uptr<Node> &root) {
     m_asm = ".section .text\n"
@@ -19,8 +20,13 @@ void Visitor::gen_expr(uptr<Node> &expr) {
     case NType::DEF: {
         if (expr->def_obj->type == NType::FN) {
             gen_fdef(expr);
+        } else if (expr->def_obj->type == NType::VAR) {
+            m_scope.create_var(expr->def_obj->var_name);
+        } else if (expr->def_obj->type == NType::BINOP && expr->def_obj->op_type == "=") {
+            m_scope.create_var(expr->def_obj->op_l->var_name);
+            gen_expr(expr->def_obj);
         } else {
-            throw std::runtime_error("[Visitor::gen_expr] def_obj wasn't FN");
+            throw std::runtime_error("[Visitor::gen_expr] def_obj wasn't FN or VAR or BINOP assignment");
         }
         break;
     }
@@ -28,7 +34,7 @@ void Visitor::gen_expr(uptr<Node> &expr) {
     case NType::VAL: gen_val(expr); break;
     case NType::BINOP: gen_binop(expr); break;
 
-    case NType::VAR: break;
+    case NType::VAR: gen_var(expr); break;
     case NType::FN: gen_fcall(expr); break;
     }
 }
@@ -80,38 +86,62 @@ void Visitor::gen_val(uptr<Node> &val) {
     }
 }
 
-void Visitor::gen_binop(uptr<Node> &op) {
-    gen_expr(op->op_l);
-    gen_expr(op->op_r);
+void Visitor::gen_var(uptr<Node> &var) {
+    m_asm += "\tmovq -"+std::to_string(m_scope.find_var(var->var_name))+"(%rbp), %rax\n";
+    // TODO bake dtype into new VAL node
+    var = mkuq<Node>(NType::VAL);
+    gen_stack_push("%rax", var->_addr);
+}
 
+void Visitor::gen_binop(uptr<Node> &op) {
     if (op->op_type == "+") {
+        gen_expr(op->op_l);
+        gen_expr(op->op_r);
         gen_stack_pop("%rbx");
         gen_stack_pop("%rax");
         m_asm += "\taddq %rbx, %rax\n";
         gen_stack_push("%rax", op->_addr);
     } else if (op->op_type == "-") {
+        gen_expr(op->op_l);
+        gen_expr(op->op_r);
         gen_stack_pop("%rbx");
         gen_stack_pop("%rax");
         m_asm += "\tsubq %rbx, %rax\n";
         gen_stack_push("%rax", op->_addr);
     } else if (op->op_type == "*") {
+        gen_expr(op->op_l);
+        gen_expr(op->op_r);
         gen_stack_pop("%rbx");
         gen_stack_pop("%rax");
         m_asm += "\timulq %rbx, %rax\n";
         gen_stack_push("%rax", op->_addr);
     } else if (op->op_type == "/") {
+        gen_expr(op->op_l);
+        gen_expr(op->op_r);
         gen_stack_pop("%rbx");
         gen_stack_pop("%rax");
         m_asm += "\tcqto\n"
                  "\tidivq %rbx\n";
         gen_stack_push("%rax", op->_addr);
     } else if (op->op_type == "%") {
+        gen_expr(op->op_l);
+        gen_expr(op->op_r);
         gen_stack_pop("%rbx");
         gen_stack_pop("%rax");
         m_asm += "\tcqto\n"
                  "\tidivq %rbx\n";
         gen_stack_push("%rdx", op->_addr);
+    } else if (op->op_type == "=") {
+        gen_assign(op);
     }
+}
+
+void Visitor::gen_assign(uptr<Node> &op) {
+    gen_expr(op->op_r);
+
+    assert(op->op_l->type == NType::VAR);
+    assert(m_scope.var_exists(op->op_l->var_name));
+    m_scope.set_var(op->op_l->var_name, op->op_r->_addr);
 }
 
 void Visitor::gen_stack_push(const string &val, int &addr) {
@@ -131,7 +161,7 @@ int Visitor::addrof(uptr<Node> &node) {
     switch (node->type) {
     case NType::FN: return node->_addr;
     case NType::VAL: return node->_addr;
-    case NType::VAR: return addrof(m_scope.find_var(node->var_name));
+    case NType::VAR: return m_scope.find_var(node->var_name);
     case NType::BINOP: return node->_addr;
     case NType::CPD:
     case NType::DEF:

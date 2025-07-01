@@ -7,33 +7,44 @@ _start:
 	movq $60, %rax
 	syscall
 
-function:
-	push %rbp
-	movq %rsp, %rbp
-
-	pushq $3
-	movq -8(%rbp), %rax
-
-	movq %rbp, %rsp
-	pop %rbp
-	ret
-
 main:
 	push %rbp
 	movq %rsp, %rbp
 
-	pushq $4
-	pushq $2
+	pushq $5
+	movq -8(%rbp), %rax
+	pushq %rax
+	pushq $1
 	popq %rbx
 	popq %rax
-	subq %rbx, %rax
+	addq %rbx, %rax
 	pushq %rax
-	pushq $3
+	movq -8(%rbp), %rax
+	pushq %rax
+	pushq $2
+	movq -16(%rbp), %rax
+	pushq %rax
 	popq %rbx
 	popq %rax
 	imulq %rbx, %rax
 	pushq %rax
-	movq -8(%rbp), %rax
+	popq %rbx
+	popq %rax
+	addq %rbx, %rax
+	pushq %rax
+	pushq $1
+	popq %rbx
+	popq %rax
+	addq %rbx, %rax
+	pushq %rax
+	pushq $1
+	movq -24(%rbp), %rax
+	pushq %rax
+	popq %rbx
+	popq %rax
+	addq %rbx, %rax
+	pushq %rax
+	movq -32(%rbp), %rax
 
 	movq %rbp, %rsp
 	pop %rbp
