@@ -5,9 +5,11 @@ using ll=long long;
 #include <string>
 #include <memory>
 #include <map>
+#include <set>
 template <typename T> using vec=std::vector<T>;
 using string=std::string;
 template <typename T> using uptr=std::unique_ptr<T>;
+template <typename T> using set=std::set<T>;
 
 template<typename T, typename... Args>
 auto mkuq(Args&&... args) {

@@ -8,6 +8,8 @@ public:
 
     string gen(uptr<Node> &root);
     void gen_expr(uptr<Node> &expr);
+    void cleanup_hanging_children(uptr<Node> &node);
+    void tighten_stack();
 
     void gen_cpd(uptr<Node> &cpd);
     void gen_fdef(uptr<Node> &fdef);
@@ -28,6 +30,8 @@ public:
     void gen_stack_pop(const string &dst);
     // move -src(%rbp) to -dst(%rbp)
     void gen_stack_mov(int src, int dst);
+    // move btw/ directly specified locations
+    void gen_stack_mov_raw(const string &src, const string &dst);
 
     int addrof(uptr<Node> &node);
 

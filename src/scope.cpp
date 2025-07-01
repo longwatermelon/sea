@@ -1,5 +1,6 @@
 #include "scope.h"
 #include <stdexcept>
+#include <cassert>
 
 void Scope::push_layer() {
     m_layers.push_back(ScopeLayer{});
@@ -53,4 +54,18 @@ bool Scope::fn_exists(const string &name) {
 
 void Scope::create_var(const string &name, int addr) {
     m_layers.back().vdefs[name] = addr;
+}
+
+void Scope::claim_addr(int addr) {
+    m_layers.back().addrs.insert(addr);
+}
+
+void Scope::del_addr(int addr) {
+    auto it = m_layers.back().addrs.find(addr);
+    assert(it!=end(m_layers.back().addrs));
+    m_layers.back().addrs.erase(it);
+}
+
+bool Scope::check_addr(int addr) {
+    return m_layers.back().addrs.find(addr) != end(m_layers.back().addrs);
 }

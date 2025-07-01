@@ -41,6 +41,55 @@ void Visitor::gen_expr(uptr<Node> &expr) {
     case NType::VAR: gen_var(expr); break;
     case NType::FN: gen_fcall(expr); break;
     }
+
+    cleanup_hanging_children(expr);
+    tighten_stack();
+}
+
+void Visitor::cleanup_hanging_children(uptr<Node> &node) {
+    auto cleanup = [&](uptr<Node> &x) {
+        if (x && x->_addr != -1) {
+            m_scope.del_addr(x->_addr);
+            x->_addr = -1;
+        }
+    };
+
+    switch (node->type) {
+    case NType::BINOP: {
+        cleanup(node->op_l);
+        cleanup(node->op_r);
+    } break; // already cleaned up
+    case NType::CPD: {
+        for (auto &x : node->cpd_nodes) {
+            cleanup(x);
+        }
+    } break;
+    case NType::DEF: {
+        cleanup(node->def_as);
+        cleanup(node->def_obj);
+    } break;
+    case NType::FN: {
+        for (auto &x : node->fn_args) {
+            cleanup(x);
+        }
+    } break;
+    case NType::RET: {
+        cleanup(node->ret_val);
+    } break;
+    case NType::VAL: break;
+    case NType::VAR: break;
+    }
+}
+
+void Visitor::tighten_stack() {
+    int dif=0;
+    while (m_rsp+dif<0 && !m_scope.check_addr(m_rsp+dif)) {
+        dif+=8;
+    }
+    if (dif==0) return;
+
+    m_rsp+=dif;
+    m_asm += "\taddq $"+std::to_string(dif)+", %rsp\n";
 }
 
 void Visitor::gen_cpd(uptr<Node> &cpd) {
@@ -89,7 +138,7 @@ void Visitor::gen_fcall(uptr<Node> &fcall) {
     for (int i=sz(fcall->fn_args)-1; i>=0; --i) {
         auto &arg = fcall->fn_args[i];
         int addr = addrof(arg);
-        m_asm += "\tmovq "+stkloc(addr)+", %rax\n";
+        gen_stack_mov_raw(stkloc(addr), "%rax");
         int tmp;
         gen_stack_push("%rax", tmp);
     }
@@ -101,7 +150,7 @@ void Visitor::gen_fcall(uptr<Node> &fcall) {
 
 void Visitor::gen_ret(uptr<Node> &ret) {
     gen_expr(ret->ret_val);
-    m_asm += "\tmovq "+stkloc(addrof(ret->ret_val))+", %rax\n";
+    gen_stack_mov_raw(stkloc(addrof(ret->ret_val)), "%rax");
 }
 
 void Visitor::gen_val(uptr<Node> &val) {
@@ -113,7 +162,7 @@ void Visitor::gen_val(uptr<Node> &val) {
 }
 
 void Visitor::gen_var(uptr<Node> &var) {
-    m_asm += "\tmovq "+stkloc(m_scope.find_var(var->var_name))+", %rax\n";
+    gen_stack_mov_raw(stkloc(m_scope.find_var(var->var_name)), "%rax");
     // TODO bake dtype into new VAL node for error typechecking later
     var = mkuq<Node>(NType::VAL);
     gen_stack_push("%rax", var->_addr);
@@ -137,15 +186,26 @@ void Visitor::gen_binop(uptr<Node> &op) {
     }
 
     if (math) {
+        gen_stack_reserve(op->_addr);
         gen_expr(op->op_l);
         gen_expr(op->op_r);
-        gen_stack_pop("%rbx");
-        gen_stack_pop("%rax");
+        gen_stack_mov_raw(stkloc(op->op_l->_addr), "%rax");
+        gen_stack_mov_raw(stkloc(op->op_r->_addr), "%rbx");
         m_asm += math_expr;
 
         string tg = "%rax";
         if (op->op_type == "%") tg = "%rdx";
-        gen_stack_push(tg, op->_addr);
+        gen_stack_mov_raw(tg, stkloc(op->_addr));
+
+        // gen_expr(op->op_l);
+        // gen_expr(op->op_r);
+        // gen_stack_pop("%rbx");
+        // gen_stack_pop("%rax");
+        // m_asm += math_expr;
+
+        // string tg = "%rax";
+        // if (op->op_type == "%") tg = "%rdx";
+        // gen_stack_push(tg, op->_addr);
     } else {
         if (op->op_type == "=") {
             gen_assign(op);
@@ -167,6 +227,7 @@ void Visitor::gen_stack_push(const string &val, int &addr) {
     if (addr != -1) return;
 
     m_rsp-=8;
+    m_scope.claim_addr(m_rsp);
     m_asm += "\tpushq "+val+"\n";
     addr = m_rsp;
 }
@@ -174,17 +235,23 @@ void Visitor::gen_stack_push(const string &val, int &addr) {
 void Visitor::gen_stack_reserve(int &addr) {
     m_asm += "\tsubq $8, %rsp\n";
     m_rsp-=8;
+    m_scope.claim_addr(m_rsp);
     addr = m_rsp;
 }
 
 void Visitor::gen_stack_pop(const string &dst) {
+    m_scope.del_addr(m_rsp);
     m_rsp+=8;
     m_asm += "\tpopq "+dst+"\n";
 }
 
 void Visitor::gen_stack_mov(int src, int dst) {
-    m_asm += "\tmovq "+stkloc(src)+", %rax\n"
-             "\tmovq %rax, "+stkloc(dst)+"\n";
+    gen_stack_mov_raw(stkloc(src), "%rax");
+    gen_stack_mov_raw("%rax", stkloc(dst));
+}
+
+void Visitor::gen_stack_mov_raw(const string &src, const string &dst) {
+    m_asm += "\tmovq "+src+", "+dst+"\n";
 }
 
 int Visitor::addrof(uptr<Node> &node) {
