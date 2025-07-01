@@ -3,3 +3,5 @@ compile_commands.json
 obj/
 .cache
 *.o
+examples/prog
+examples/prog-gcc
