@@ -1,7 +1,7 @@
 #include "sea.h"
 
 int main() {
-    string out="prog";
+    string out="examples/prog";
     sea::compile(out+".c", out+".s");
 
     system(("as -64 "+out+".s -o "+out+".o").c_str());

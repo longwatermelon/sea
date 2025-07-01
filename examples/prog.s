@@ -33,6 +33,16 @@ main:
 	popq %rax
 	addq %rbx, %rax
 	pushq %rax
+	pushq $1
+	popq %rbx
+	popq %rax
+	subq %rbx, %rax
+	pushq %rax
+	pushq $1
+	popq %rbx
+	popq %rax
+	subq %rbx, %rax
+	pushq %rax
 	movq -8(%rbp), %rax
 
 	movq %rbp, %rsp
