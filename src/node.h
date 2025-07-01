@@ -35,15 +35,16 @@ struct Node {
 
     NType type;
     DType dtype;
+    int _addr=-1;
 
     // cpd
     vec<uptr<Node>> cpd_nodes;
 
-    // int
-    int int_val;
+    // val: int
+    int val_int;
 
-    // str
-    string str_val;
+    // val: str
+    string val_str;
 
     // def
     uptr<Node> def_obj;
