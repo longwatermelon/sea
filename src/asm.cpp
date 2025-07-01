@@ -98,45 +98,36 @@ void Visitor::gen_var(uptr<Node> &var) {
 }
 
 void Visitor::gen_binop(uptr<Node> &op) {
+    bool math=true;
+    string math_expr;
     if (op->op_type == "+") {
-        gen_expr(op->op_l);
-        gen_expr(op->op_r);
-        gen_stack_pop("%rbx");
-        gen_stack_pop("%rax");
-        m_asm += "\taddq %rbx, %rax\n";
-        gen_stack_push("%rax", op->_addr);
+        math_expr = "\taddq %rbx, %rax\n";
     } else if (op->op_type == "-") {
-        gen_expr(op->op_l);
-        gen_expr(op->op_r);
-        gen_stack_pop("%rbx");
-        gen_stack_pop("%rax");
-        m_asm += "\tsubq %rbx, %rax\n";
-        gen_stack_push("%rax", op->_addr);
+        math_expr = "\tsubq %rbx, %rax\n";
     } else if (op->op_type == "*") {
-        gen_expr(op->op_l);
-        gen_expr(op->op_r);
-        gen_stack_pop("%rbx");
-        gen_stack_pop("%rax");
-        m_asm += "\timulq %rbx, %rax\n";
-        gen_stack_push("%rax", op->_addr);
+        math_expr = "\timulq %rbx, %rax\n";
     } else if (op->op_type == "/") {
-        gen_expr(op->op_l);
-        gen_expr(op->op_r);
-        gen_stack_pop("%rbx");
-        gen_stack_pop("%rax");
-        m_asm += "\tcqto\n"
-                 "\tidivq %rbx\n";
-        gen_stack_push("%rax", op->_addr);
+        math_expr = "\tcqto\n\tidivq %rbx\n";
     } else if (op->op_type == "%") {
+        math_expr = "\tcqto\n\tidivq %rbx\n";
+    } else {
+        math=false;
+    }
+
+    if (math) {
         gen_expr(op->op_l);
         gen_expr(op->op_r);
         gen_stack_pop("%rbx");
         gen_stack_pop("%rax");
-        m_asm += "\tcqto\n"
-                 "\tidivq %rbx\n";
-        gen_stack_push("%rdx", op->_addr);
-    } else if (op->op_type == "=") {
-        gen_assign(op);
+        m_asm += math_expr;
+
+        string tg = "%rax";
+        if (op->op_type == "%") tg = "%rdx";
+        gen_stack_push(tg, op->_addr);
+    } else {
+        if (op->op_type == "=") {
+            gen_assign(op);
+        }
     }
 }
 
