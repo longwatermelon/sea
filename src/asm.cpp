@@ -196,16 +196,6 @@ void Visitor::gen_binop(uptr<Node> &op) {
         string tg = "%rax";
         if (op->op_type == "%") tg = "%rdx";
         gen_stack_mov_raw(tg, stkloc(op->_addr));
-
-        // gen_expr(op->op_l);
-        // gen_expr(op->op_r);
-        // gen_stack_pop("%rbx");
-        // gen_stack_pop("%rax");
-        // m_asm += math_expr;
-
-        // string tg = "%rax";
-        // if (op->op_type == "%") tg = "%rdx";
-        // gen_stack_push(tg, op->_addr);
     } else {
         if (op->op_type == "=") {
             gen_assign(op);

@@ -1,6 +1,9 @@
+int f(int x) {
+    int y=x;
+    y = y+5;
+    return y+1;
+}
+
 int main() {
-    int x=5;
-    int y=x+1;
-    y=x+2*y+1-x+x-x+(x*2+3*1*x-5)-5-2+y+2*(y+3*y);
-    return 1+y;
+    return f(5)*2;
 }
