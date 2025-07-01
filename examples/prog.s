@@ -43,6 +43,94 @@ main:
 	popq %rax
 	addq %rbx, %rax
 	pushq %rax
+	movq -8(%rbp), %rax
+	pushq %rax
+	popq %rbx
+	popq %rax
+	subq %rbx, %rax
+	pushq %rax
+	movq -8(%rbp), %rax
+	pushq %rax
+	popq %rbx
+	popq %rax
+	addq %rbx, %rax
+	pushq %rax
+	movq -8(%rbp), %rax
+	pushq %rax
+	popq %rbx
+	popq %rax
+	subq %rbx, %rax
+	pushq %rax
+	movq -8(%rbp), %rax
+	pushq %rax
+	pushq $2
+	popq %rbx
+	popq %rax
+	imulq %rbx, %rax
+	pushq %rax
+	pushq $3
+	pushq $1
+	popq %rbx
+	popq %rax
+	imulq %rbx, %rax
+	pushq %rax
+	movq -8(%rbp), %rax
+	pushq %rax
+	popq %rbx
+	popq %rax
+	imulq %rbx, %rax
+	pushq %rax
+	popq %rbx
+	popq %rax
+	addq %rbx, %rax
+	pushq %rax
+	pushq $5
+	popq %rbx
+	popq %rax
+	subq %rbx, %rax
+	pushq %rax
+	popq %rbx
+	popq %rax
+	addq %rbx, %rax
+	pushq %rax
+	pushq $5
+	popq %rbx
+	popq %rax
+	subq %rbx, %rax
+	pushq %rax
+	pushq $2
+	popq %rbx
+	popq %rax
+	subq %rbx, %rax
+	pushq %rax
+	movq -24(%rbp), %rax
+	pushq %rax
+	popq %rbx
+	popq %rax
+	addq %rbx, %rax
+	pushq %rax
+	pushq $2
+	movq -24(%rbp), %rax
+	pushq %rax
+	pushq $3
+	movq -24(%rbp), %rax
+	pushq %rax
+	popq %rbx
+	popq %rax
+	imulq %rbx, %rax
+	pushq %rax
+	popq %rbx
+	popq %rax
+	addq %rbx, %rax
+	pushq %rax
+	popq %rbx
+	popq %rax
+	imulq %rbx, %rax
+	pushq %rax
+	popq %rbx
+	popq %rax
+	addq %rbx, %rax
+	pushq %rax
 	movq -40(%rbp), %rax
 	movq %rax, -24(%rbp)
 	pushq $1
