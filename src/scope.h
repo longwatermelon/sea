@@ -1,9 +1,11 @@
 #pragma once
+#include "util.h"
 #include "node.h"
 
 struct ScopeLayer {
     map<string,int> vdefs;
     map<string,int> fdefs;
+    map<string,DType> vdtypes;
 };
 
 class Scope {
@@ -18,8 +20,7 @@ public:
     bool fn_exists(const string &name);
     int find_var(const string &name);
     int find_fn(const string &name);
-    void set_var(const string &name, int addr);
-    void create_var(const string &name);
+    void create_var(const string &name, int addr);
 
 private:
     vec<ScopeLayer> m_layers;

@@ -27,3 +27,7 @@ inline int precedence(const string &op) {
     };
     return ans[op];
 }
+
+inline string stkloc(int addr) {
+    return "-"+std::to_string(addr)+"(%rbp)";
+}

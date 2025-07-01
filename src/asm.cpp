@@ -21,9 +21,13 @@ void Visitor::gen_expr(uptr<Node> &expr) {
         if (expr->def_obj->type == NType::FN) {
             gen_fdef(expr);
         } else if (expr->def_obj->type == NType::VAR) {
-            m_scope.create_var(expr->def_obj->var_name);
+            int addr;
+            gen_stack_reserve(addr);
+            m_scope.create_var(expr->def_obj->var_name, addr);
         } else if (expr->def_obj->type == NType::BINOP && expr->def_obj->op_type == "=") {
-            m_scope.create_var(expr->def_obj->op_l->var_name);
+            int addr;
+            gen_stack_reserve(addr);
+            m_scope.create_var(expr->def_obj->op_l->var_name, addr);
             gen_expr(expr->def_obj);
         } else {
             throw std::runtime_error("[Visitor::gen_expr] def_obj wasn't FN or VAR or BINOP assignment");
@@ -88,7 +92,7 @@ void Visitor::gen_val(uptr<Node> &val) {
 
 void Visitor::gen_var(uptr<Node> &var) {
     m_asm += "\tmovq -"+std::to_string(m_scope.find_var(var->var_name))+"(%rbp), %rax\n";
-    // TODO bake dtype into new VAL node
+    // TODO bake dtype into new VAL node for error typechecking later
     var = mkuq<Node>(NType::VAL);
     gen_stack_push("%rax", var->_addr);
 }
@@ -137,11 +141,13 @@ void Visitor::gen_binop(uptr<Node> &op) {
 }
 
 void Visitor::gen_assign(uptr<Node> &op) {
+    // compute op_r
     gen_expr(op->op_r);
 
+    // move result to var in op_l
     assert(op->op_l->type == NType::VAR);
     assert(m_scope.var_exists(op->op_l->var_name));
-    m_scope.set_var(op->op_l->var_name, op->op_r->_addr);
+    gen_stack_mov(op->op_r->_addr, m_scope.find_var(op->op_l->var_name));
 }
 
 void Visitor::gen_stack_push(const string &val, int &addr) {
@@ -152,9 +158,20 @@ void Visitor::gen_stack_push(const string &val, int &addr) {
     addr = m_rsp;
 }
 
+void Visitor::gen_stack_reserve(int &addr) {
+    m_asm += "\tsubq $8, %rsp\n";
+    m_rsp+=8;
+    addr = m_rsp;
+}
+
 void Visitor::gen_stack_pop(const string &dst) {
     m_rsp-=8;
     m_asm += "\tpopq "+dst+"\n";
+}
+
+void Visitor::gen_stack_mov(int src, int dst) {
+    m_asm += "\tmovq "+stkloc(src)+", %rax\n"
+             "\tmovq %rax, "+stkloc(dst)+"\n";
 }
 
 int Visitor::addrof(uptr<Node> &node) {

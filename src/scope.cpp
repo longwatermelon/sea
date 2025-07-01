@@ -51,10 +51,6 @@ bool Scope::fn_exists(const string &name) {
     return false;
 }
 
-void Scope::set_var(const string &name, int addr) {
+void Scope::create_var(const string &name, int addr) {
     m_layers.back().vdefs[name] = addr;
-}
-
-void Scope::create_var(const string &name) {
-    m_layers.back().vdefs[name] = -1;
 }

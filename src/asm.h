@@ -22,8 +22,12 @@ public:
 
     // push val to stack, track its offset in addr
     void gen_stack_push(const string &val, int &addr);
+    // reserve space for value
+    void gen_stack_reserve(int &addr);
     // pop stack item into dst
     void gen_stack_pop(const string &dst);
+    // move -src(%rbp) to -dst(%rbp)
+    void gen_stack_mov(int src, int dst);
 
     int addrof(uptr<Node> &node);
 
