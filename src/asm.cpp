@@ -28,26 +28,32 @@ void Visitor::gen_expr(uptr<Node> &expr) {
     case NType::VAL: gen_stack_push(expr); break;
 
     case NType::VAR: break;
-    case NType::FN: break;
+    case NType::FN: gen_fcall(expr); break;
     }
 }
 
 void Visitor::gen_cpd(uptr<Node> &cpd) {
+    m_scope.push_layer();
     for (auto &node : cpd->cpd_nodes) {
         gen_expr(node);
     }
+    m_scope.pop_layer();
 }
 
 void Visitor::gen_fdef(uptr<Node> &fdef) {
     m_asm += fdef->def_obj->fn_name+":\n";
     m_asm += "\tpush %rbp\n"
-             "\tmovq %rsp, %rbp\n";
+             "\tmovq %rsp, %rbp\n\n";
 
     gen_expr(fdef->def_as);
 
-    m_asm += "\tmovq %rbp, %rsp\n"
+    m_asm += "\n\tmovq %rbp, %rsp\n"
              "\tpop %rbp\n"
              "\tret\n";
+}
+
+void Visitor::gen_fcall(uptr<Node> &fcall) {
+    m_asm += "\tcall "+fcall->fn_name+"\n";
 }
 
 void Visitor::gen_ret(uptr<Node> &ret) {
@@ -61,10 +67,10 @@ void Visitor::gen_stack_push(uptr<Node> &node) {
     switch (node->type) {
     case NType::VAL: {
         if (node->dtype == DType::INT) {
+            m_rsp+=8;
             m_asm += "\tsub $8, %rsp\n"
                      "\tmovq $"+std::to_string(node->val_int)+", "+std::to_string(m_rsp)+"(%rsp)\n";
             node->_addr = m_rsp;
-            m_rsp+=8;
         } else {
             // TODO
             throw std::runtime_error("[Visitor::gen_stack_push] unimplemented VAL dtype");

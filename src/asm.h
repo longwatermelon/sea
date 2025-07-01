@@ -1,5 +1,6 @@
 #pragma once
 #include "node.h"
+#include "scope.h"
 
 class Visitor {
 public:
@@ -10,6 +11,7 @@ public:
 
     void gen_cpd(uptr<Node> &cpd);
     void gen_fdef(uptr<Node> &fdef);
+    void gen_fcall(uptr<Node> &fcall);
     void gen_ret(uptr<Node> &ret);
 
     // sets node->_addr
@@ -20,4 +22,6 @@ public:
 private:
     string m_asm;
     int m_rsp=0; // stack ptr
+
+    Scope m_scope;
 };

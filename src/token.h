@@ -17,7 +17,8 @@ enum class TType {
 struct Token {
     TType type;
     string val;
+    ll line;
 
     Token()=default;
-    Token(TType type, const string &val) : type(type), val(val) {}
+    Token(TType type, const string &val, ll line = 1) : type(type), val(val), line(line) {}
 };

@@ -1,7 +1,6 @@
 #include "lexer.h"
 #include "util.h"
 #include <cctype>
-// TODO include line info in tokens
 
 Lexer::Lexer(const string &prog) : m_prog(prog) {
     m_ind=0;
@@ -21,28 +20,28 @@ vec<Token> Lexer::tokenize() {
         }
 
         if (std::isdigit(c)) {
-            tokens.push_back(Token(TType::INT, collect_int()));
+            tokens.push_back(Token(TType::INT, collect_int(), m_line));
         } else if (std::isalpha(c) || c == '_') {
-            tokens.push_back(Token(TType::ID, collect_id()));
+            tokens.push_back(Token(TType::ID, collect_id(), m_line));
         } else if (c == '"') {
-            tokens.push_back(Token(TType::STR, collect_str()));
+            tokens.push_back(Token(TType::STR, collect_str(), m_line));
         } else if (c == '(') {
-            tokens.push_back(Token(TType::LPAREN, "("));
+            tokens.push_back(Token(TType::LPAREN, "(", m_line));
             advance();
         } else if (c == ')') {
-            tokens.push_back(Token(TType::RPAREN, ")"));
+            tokens.push_back(Token(TType::RPAREN, ")", m_line));
             advance();
         } else if (c == '{') {
-            tokens.push_back(Token(TType::LBRACE, "{"));
+            tokens.push_back(Token(TType::LBRACE, "{", m_line));
             advance();
         } else if (c == '}') {
-            tokens.push_back(Token(TType::RBRACE, "}"));
+            tokens.push_back(Token(TType::RBRACE, "}", m_line));
             advance();
         } else if (c == ';') {
-            tokens.push_back(Token(TType::SEMI, ";"));
+            tokens.push_back(Token(TType::SEMI, ";", m_line));
             advance();
         } else if (c == ',') {
-            tokens.push_back(Token(TType::COMMA, ","));
+            tokens.push_back(Token(TType::COMMA, ",", m_line));
             advance();
         } else {
             advance();

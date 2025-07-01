@@ -24,7 +24,4 @@ void sea::compile(const string &path, const string &out) {
     std::ofstream ofs(out);
     ofs << prog_asm;
     ofs.close();
-
-    // system(("as -64 "+out+".s -o "+out+".o").c_str());
-    // system(("ld "+out+".o -o "+out).c_str());
 }

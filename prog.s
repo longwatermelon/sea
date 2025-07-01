@@ -10,9 +10,11 @@ _start:
 main:
 	push %rbp
 	movq %rsp, %rbp
+
 	sub $8, %rsp
-	movq $4, 0(%rsp)
-	movq 0(%rsp), %rax
+	movq $2, 8(%rsp)
+	movq 8(%rsp), %rax
+
 	movq %rbp, %rsp
 	pop %rbp
 	ret
