@@ -94,6 +94,23 @@ void Visitor::gen_binop(uptr<Node> &op) {
         gen_stack_pop("%rax");
         m_asm += "\tsubq %rbx, %rax\n";
         gen_stack_push("%rax", op->_addr);
+    } else if (op->op_type == "*") {
+        gen_stack_pop("%rbx");
+        gen_stack_pop("%rax");
+        m_asm += "\timulq %rbx, %rax\n";
+        gen_stack_push("%rax", op->_addr);
+    } else if (op->op_type == "/") {
+        gen_stack_pop("%rbx");
+        gen_stack_pop("%rax");
+        m_asm += "\tcqto\n"
+                 "\tidivq %rbx\n";
+        gen_stack_push("%rax", op->_addr);
+    } else if (op->op_type == "%") {
+        gen_stack_pop("%rbx");
+        gen_stack_pop("%rax");
+        m_asm += "\tcqto\n"
+                 "\tidivq %rbx\n";
+        gen_stack_push("%rdx", op->_addr);
     }
 }
 

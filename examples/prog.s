@@ -23,25 +23,15 @@ main:
 	movq %rsp, %rbp
 
 	pushq $4
-	pushq $1
-	popq %rbx
-	popq %rax
-	subq %rbx, %rax
-	pushq %rax
 	pushq $2
 	popq %rbx
 	popq %rax
-	addq %rbx, %rax
-	pushq %rax
-	pushq $1
-	popq %rbx
-	popq %rax
 	subq %rbx, %rax
 	pushq %rax
-	pushq $1
+	pushq $3
 	popq %rbx
 	popq %rax
-	subq %rbx, %rax
+	imulq %rbx, %rax
 	pushq %rax
 	movq -8(%rbp), %rax
 

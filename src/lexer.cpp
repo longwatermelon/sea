@@ -43,7 +43,7 @@ vec<Token> Lexer::tokenize() {
         } else if (c == ',') {
             tokens.push_back(Token(TType::COMMA, ",", m_line));
             advance();
-        } else if (c == '+' || c == '-' || c == '*' || c == '/' || c == '=') {
+        } else if (c == '+' || c == '-' || c == '*' || c == '/' || c == '=' || c == '%') {
             string op(1,c);
             if (m_ind+1 < sz(m_prog) && m_prog[m_ind+1]=='=') {
                 op+='=';

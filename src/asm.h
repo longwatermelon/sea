@@ -17,8 +17,9 @@ public:
 
     void gen_binop(uptr<Node> &op);
 
-    // sets addr
+    // push val to stack, track its offset in addr
     void gen_stack_push(const string &val, int &addr);
+    // pop stack item into dst
     void gen_stack_pop(const string &dst);
 
     int addrof(uptr<Node> &node);
