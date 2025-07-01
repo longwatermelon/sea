@@ -214,8 +214,6 @@ void Visitor::gen_assign(uptr<Node> &op) {
 }
 
 void Visitor::gen_stack_push(const string &val, int &addr) {
-    if (addr != -1) return;
-
     m_rsp-=8;
     m_scope.claim_addr(m_rsp);
     m_asm += "\tpushq "+val+"\n";
