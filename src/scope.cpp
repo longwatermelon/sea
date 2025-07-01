@@ -5,10 +5,10 @@ void Scope::push_layer() {
     m_layers.push_back(ScopeLayer{});
 }
 
-void Scope::pop_layer() {
-    if (!m_layers.empty()) {
-        m_layers.pop_back();
-    }
+ScopeLayer Scope::pop_layer() {
+    ScopeLayer res = std::move(m_layers.back());
+    m_layers.pop_back();
+    return res;
 }
 
 int Scope::find_var(const string &name) {

@@ -19,15 +19,16 @@ template <typename T, typename U> using map=std::map<T,U>;
 inline int precedence(const string &op) {
     static map<string,int> ans{
         {"=", 0},
-        {"==", 1},
-        {"+", 2},
-        {"-", 2},
-        {"*", 3},
-        {"/", 3},
+        {"||", 1},
+        {"==", 2},
+        {"+", 3},
+        {"-", 3},
+        {"*", 4},
+        {"/", 4},
     };
     return ans[op];
 }
 
 inline string stkloc(int addr) {
-    return "-"+std::to_string(addr)+"(%rbp)";
+    return std::to_string(addr)+"(%rbp)";
 }

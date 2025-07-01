@@ -13,8 +13,7 @@ public:
     Scope()=default;
 
     void push_layer();
-    void pop_layer();
-    const ScopeLayer& top() const {return m_layers.back();};
+    ScopeLayer pop_layer();
 
     bool var_exists(const string &name);
     bool fn_exists(const string &name);

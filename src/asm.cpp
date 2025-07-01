@@ -52,10 +52,19 @@ void Visitor::gen_cpd(uptr<Node> &cpd) {
 }
 
 void Visitor::gen_fdef(uptr<Node> &fdef) {
-    // TODO fix scope
+    // prep separate scope
+    m_scope.push_layer();
     int prev_rsp = m_rsp;
     m_rsp=0;
 
+    // prep params
+    int addr=16;
+    for (auto &param : fdef->def_obj->fn_args) {
+        m_scope.create_var(param->def_obj->var_name, addr);
+        addr+=8;
+    }
+
+    // fdef
     m_asm += fdef->def_obj->fn_name+":\n";
     m_asm += "\tpush %rbp\n"
              "\tmovq %rsp, %rbp\n\n";
@@ -66,20 +75,33 @@ void Visitor::gen_fdef(uptr<Node> &fdef) {
              "\tpop %rbp\n"
              "\tret\n\n";
 
+    // restore og scope
     m_rsp = prev_rsp;
+    m_scope.pop_layer();
 }
 
 void Visitor::gen_fcall(uptr<Node> &fcall) {
-    // TODO push args
-    m_rsp+=8;
+    // eval args, create addresses
+    for (auto &arg : fcall->fn_args) {
+        gen_expr(arg);
+    }
+    // push args from their cur locations to the front
+    for (int i=sz(fcall->fn_args)-1; i>=0; --i) {
+        auto &arg = fcall->fn_args[i];
+        int addr = addrof(arg);
+        m_asm += "\tmovq "+stkloc(addr)+", %rax\n";
+        int tmp;
+        gen_stack_push("%rax", tmp);
+    }
+
+    // call function, store return address on stack
     m_asm += "\tcall "+fcall->fn_name+"\n";
     gen_stack_push("%rax", fcall->_addr);
-    fcall->_addr = m_rsp;
 }
 
 void Visitor::gen_ret(uptr<Node> &ret) {
     gen_expr(ret->ret_val);
-    m_asm += "\tmovq -"+std::to_string(addrof(ret->ret_val))+"(%rbp), %rax\n";
+    m_asm += "\tmovq "+stkloc(addrof(ret->ret_val))+", %rax\n";
 }
 
 void Visitor::gen_val(uptr<Node> &val) {
@@ -91,7 +113,7 @@ void Visitor::gen_val(uptr<Node> &val) {
 }
 
 void Visitor::gen_var(uptr<Node> &var) {
-    m_asm += "\tmovq -"+std::to_string(m_scope.find_var(var->var_name))+"(%rbp), %rax\n";
+    m_asm += "\tmovq "+stkloc(m_scope.find_var(var->var_name))+", %rax\n";
     // TODO bake dtype into new VAL node for error typechecking later
     var = mkuq<Node>(NType::VAL);
     gen_stack_push("%rax", var->_addr);
@@ -144,19 +166,19 @@ void Visitor::gen_assign(uptr<Node> &op) {
 void Visitor::gen_stack_push(const string &val, int &addr) {
     if (addr != -1) return;
 
-    m_rsp+=8;
+    m_rsp-=8;
     m_asm += "\tpushq "+val+"\n";
     addr = m_rsp;
 }
 
 void Visitor::gen_stack_reserve(int &addr) {
     m_asm += "\tsubq $8, %rsp\n";
-    m_rsp+=8;
+    m_rsp-=8;
     addr = m_rsp;
 }
 
 void Visitor::gen_stack_pop(const string &dst) {
-    m_rsp-=8;
+    m_rsp+=8;
     m_asm += "\tpopq "+dst+"\n";
 }
 
