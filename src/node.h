@@ -9,6 +9,7 @@ enum class NType {
     FN, // function
     VAR, // variable
     RET, // return
+    BINOP, // binary operation
 };
 
 enum class DType {
@@ -59,4 +60,7 @@ struct Node {
 
     // ret
     uptr<Node> ret_val;
+
+    // binop
+    uptr<Node> op_l, op_r;
 };

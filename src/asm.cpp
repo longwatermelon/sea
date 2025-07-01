@@ -41,6 +41,10 @@ void Visitor::gen_cpd(uptr<Node> &cpd) {
 }
 
 void Visitor::gen_fdef(uptr<Node> &fdef) {
+    // TODO fix scope
+    int prev_rsp = m_rsp;
+    m_rsp=0;
+
     m_asm += fdef->def_obj->fn_name+":\n";
     m_asm += "\tpush %rbp\n"
              "\tmovq %rsp, %rbp\n\n";
@@ -49,16 +53,23 @@ void Visitor::gen_fdef(uptr<Node> &fdef) {
 
     m_asm += "\n\tmovq %rbp, %rsp\n"
              "\tpop %rbp\n"
-             "\tret\n";
+             "\tret\n\n";
+
+    m_rsp = prev_rsp;
 }
 
 void Visitor::gen_fcall(uptr<Node> &fcall) {
-    m_asm += "\tcall "+fcall->fn_name+"\n";
+    // TODO push args
+    m_rsp+=8;
+    m_asm += "\tcall "+fcall->fn_name+"\n"
+             "\tsub $8, %rsp\n"
+             "\tmovq %rax, -"+std::to_string(m_rsp)+"(%rbp)";
+    fcall->_addr = m_rsp;
 }
 
 void Visitor::gen_ret(uptr<Node> &ret) {
     gen_expr(ret->ret_val);
-    m_asm += "\tmovq "+std::to_string(addrof(ret->ret_val))+"(%rsp), %rax\n";
+    m_asm += "\tmovq -"+std::to_string(addrof(ret->ret_val))+"(%rbp), %rax\n";
 }
 
 void Visitor::gen_stack_push(uptr<Node> &node) {
@@ -69,7 +80,7 @@ void Visitor::gen_stack_push(uptr<Node> &node) {
         if (node->dtype == DType::INT) {
             m_rsp+=8;
             m_asm += "\tsub $8, %rsp\n"
-                     "\tmovq $"+std::to_string(node->val_int)+", "+std::to_string(m_rsp)+"(%rsp)\n";
+                     "\tmovq $"+std::to_string(node->val_int)+", -"+std::to_string(m_rsp)+"(%rbp)\n";
             node->_addr = m_rsp;
         } else {
             // TODO
@@ -82,18 +93,20 @@ void Visitor::gen_stack_push(uptr<Node> &node) {
     case NType::FN:
     case NType::RET:
     case NType::VAR:
+    case NType::BINOP:
         break;
     }
 }
 
 int Visitor::addrof(uptr<Node> &node) {
     switch (node->type) {
-    case NType::CPD: return -2;
-    case NType::DEF: return addrof(node->def_as);
-    case NType::FN: return -2;
-    case NType::RET: return -2;
+    case NType::FN: return node->_addr;
     case NType::VAL: return node->_addr;
-    // TODO scope class
-    case NType::VAR: return -2;
+    case NType::VAR: return addrof(m_scope.find_var(node->var_name));
+    case NType::CPD:
+    case NType::DEF:
+    case NType::RET:
+    case NType::BINOP:
+        return -2;
     }
 }
