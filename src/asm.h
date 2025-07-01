@@ -13,9 +13,13 @@ public:
     void gen_fdef(uptr<Node> &fdef);
     void gen_fcall(uptr<Node> &fcall);
     void gen_ret(uptr<Node> &ret);
+    void gen_val(uptr<Node> &val);
 
-    // sets node->_addr
-    void gen_stack_push(uptr<Node> &node);
+    void gen_binop(uptr<Node> &op);
+
+    // sets addr
+    void gen_stack_push(const string &val, int &addr);
+    void gen_stack_pop(const string &dst);
 
     int addrof(uptr<Node> &node);
 

@@ -25,7 +25,8 @@ void Visitor::gen_expr(uptr<Node> &expr) {
         break;
     }
     case NType::RET: gen_ret(expr); break;
-    case NType::VAL: gen_stack_push(expr); break;
+    case NType::VAL: gen_val(expr); break;
+    case NType::BINOP: gen_binop(expr); break;
 
     case NType::VAR: break;
     case NType::FN: gen_fcall(expr); break;
@@ -61,9 +62,8 @@ void Visitor::gen_fdef(uptr<Node> &fdef) {
 void Visitor::gen_fcall(uptr<Node> &fcall) {
     // TODO push args
     m_rsp+=8;
-    m_asm += "\tcall "+fcall->fn_name+"\n"
-             "\tsub $8, %rsp\n"
-             "\tmovq %rax, -"+std::to_string(m_rsp)+"(%rbp)";
+    m_asm += "\tcall "+fcall->fn_name+"\n";
+    gen_stack_push("%rax", fcall->_addr);
     fcall->_addr = m_rsp;
 }
 
@@ -72,30 +72,42 @@ void Visitor::gen_ret(uptr<Node> &ret) {
     m_asm += "\tmovq -"+std::to_string(addrof(ret->ret_val))+"(%rbp), %rax\n";
 }
 
-void Visitor::gen_stack_push(uptr<Node> &node) {
-    if (node->_addr != -1) return; // don't push if already existing
-
-    switch (node->type) {
-    case NType::VAL: {
-        if (node->dtype == DType::INT) {
-            m_rsp+=8;
-            m_asm += "\tsub $8, %rsp\n"
-                     "\tmovq $"+std::to_string(node->val_int)+", -"+std::to_string(m_rsp)+"(%rbp)\n";
-            node->_addr = m_rsp;
-        } else {
-            // TODO
-            throw std::runtime_error("[Visitor::gen_stack_push] unimplemented VAL dtype");
-        }
-    } break;
-
-    case NType::CPD:
-    case NType::DEF:
-    case NType::FN:
-    case NType::RET:
-    case NType::VAR:
-    case NType::BINOP:
-        break;
+void Visitor::gen_val(uptr<Node> &val) {
+    switch (val->dtype) {
+    case DType::INT: gen_stack_push("$"+std::to_string(val->val_int), val->_addr); break;
+    case DType::STR: throw std::runtime_error("[Visitor::gen_val] unimplemented"); break; // TODO
+    case DType::VOID: throw std::runtime_error("[Visitor::gen_val] unreachable void"); break;
     }
+}
+
+void Visitor::gen_binop(uptr<Node> &op) {
+    gen_expr(op->op_l);
+    gen_expr(op->op_r);
+
+    if (op->op_type == "+") {
+        gen_stack_pop("%rbx");
+        gen_stack_pop("%rax");
+        m_asm += "\taddq %rbx, %rax\n";
+        gen_stack_push("%rax", op->_addr);
+    } else if (op->op_type == "-") {
+        gen_stack_pop("%rbx");
+        gen_stack_pop("%rax");
+        m_asm += "\tsubq %rbx, %rax\n";
+        gen_stack_push("%rax", op->_addr);
+    }
+}
+
+void Visitor::gen_stack_push(const string &val, int &addr) {
+    if (addr != -1) return;
+
+    m_rsp+=8;
+    m_asm += "\tpushq "+val+"\n";
+    addr = m_rsp;
+}
+
+void Visitor::gen_stack_pop(const string &dst) {
+    m_rsp-=8;
+    m_asm += "\tpopq "+dst+"\n";
 }
 
 int Visitor::addrof(uptr<Node> &node) {
@@ -103,10 +115,11 @@ int Visitor::addrof(uptr<Node> &node) {
     case NType::FN: return node->_addr;
     case NType::VAL: return node->_addr;
     case NType::VAR: return addrof(m_scope.find_var(node->var_name));
+    case NType::BINOP: return node->_addr;
     case NType::CPD:
     case NType::DEF:
-    case NType::RET:
-    case NType::BINOP:
-        return -2;
+    case NType::RET: break;
     }
+
+    return -2;
 }

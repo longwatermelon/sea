@@ -63,4 +63,5 @@ struct Node {
 
     // binop
     uptr<Node> op_l, op_r;
+    string op_type;
 };

@@ -12,7 +12,8 @@ public:
 private:
     void advance(TType expect);
 
-    uptr<Node> parse_expr();
+    uptr<Node> parse_atom();
+    uptr<Node> parse_expr(int mn_prec=0);
     uptr<Node> parse_cpd();
 
     uptr<Node> parse_int();

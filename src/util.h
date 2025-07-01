@@ -15,3 +15,15 @@ auto mkuq(Args&&... args) {
 }
 
 template <typename T, typename U> using map=std::map<T,U>;
+
+inline int precedence(const string &op) {
+    static map<string,int> ans{
+        {"=", 0},
+        {"==", 1},
+        {"+", 2},
+        {"-", 2},
+        {"*", 3},
+        {"/", 3},
+    };
+    return ans[op];
+}

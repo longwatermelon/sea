@@ -19,7 +19,7 @@ void Parser::advance(TType expect) {
     }
 }
 
-uptr<Node> Parser::parse_expr() {
+uptr<Node> Parser::parse_atom() {
     switch (curtok().type) {
     // all useful
     case TType::ID: return parse_id();
@@ -38,8 +38,31 @@ uptr<Node> Parser::parse_expr() {
     case TType::RPAREN:
     case TType::RBRACE:
     case TType::COMMA:
-        return nullptr;
+    case TType::BINOP: break;
     }
+
+    return nullptr;
+}
+
+uptr<Node> Parser::parse_expr(int mn_prec) {
+    uptr<Node> left = parse_atom();
+
+    while (curtok().type == TType::BINOP) {
+        string op = curtok().val;
+        int prec = precedence(op);
+        if (prec < mn_prec) break;
+
+        advance(curtok().type);
+        uptr<Node> right = parse_expr(prec+1);
+
+        uptr<Node> cur = mkuq<Node>(NType::BINOP);
+        cur->op_l = std::move(left);
+        cur->op_r = std::move(right);
+        cur->op_type = op;
+        left = std::move(cur);
+    }
+
+    return left;
 }
 
 uptr<Node> Parser::parse_cpd() {

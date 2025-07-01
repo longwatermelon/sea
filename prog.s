@@ -11,8 +11,7 @@ function:
 	push %rbp
 	movq %rsp, %rbp
 
-	sub $8, %rsp
-	movq $3, -8(%rbp)
+	pushq $3
 	movq -8(%rbp), %rax
 
 	movq %rbp, %rsp
@@ -23,8 +22,17 @@ main:
 	push %rbp
 	movq %rsp, %rbp
 
-	sub $8, %rsp
-	movq $4, -8(%rbp)
+	pushq $4
+	pushq $1
+	popq %rbx
+	popq %rax
+	subq %rbx, %rax
+	pushq %rax
+	pushq $2
+	popq %rbx
+	popq %rax
+	addq %rbx, %rax
+	pushq %rax
 	movq -8(%rbp), %rax
 
 	movq %rbp, %rsp
