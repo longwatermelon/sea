@@ -10,6 +10,8 @@ template <typename T> using vec=std::vector<T>;
 using string=std::string;
 template <typename T> using uptr=std::unique_ptr<T>;
 template <typename T> using set=std::set<T>;
+using std::end;
+using std::begin;
 
 template<typename T, typename... Args>
 auto mkuq(Args&&... args) {

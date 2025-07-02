@@ -18,33 +18,34 @@ fib:
 	pushq $0
 	movq -24(%rbp), %rax
 	movq -32(%rbp), %rbx
+	addq $16, %rsp
 	cmp %rbx, %rax
 	sete %al
 	movzbl %al, %eax
 	movq %rax, -16(%rbp)
-	addq $16, %rsp
 	subq $8, %rsp
 	movq 16(%rbp), %rax
 	pushq %rax
 	pushq $1
 	movq -32(%rbp), %rax
 	movq -40(%rbp), %rbx
+	addq $16, %rsp
 	cmp %rbx, %rax
 	sete %al
 	movzbl %al, %eax
 	movq %rax, -24(%rbp)
-	addq $16, %rsp
 	movq -16(%rbp), %rax
 	movq -24(%rbp), %rbx
+	addq $16, %rsp
 	or %rbx, %rax
 	movq %rax, -8(%rbp)
-	addq $16, %rsp
 	movq -8(%rbp), %rax
+	addq $8, %rsp
 	test %rax, %rax
 	jz .L_else_0
 	movq 16(%rbp), %rax
 	pushq %rax
-	movq -16(%rbp), %rax
+	movq -8(%rbp), %rax
 	movq %rbp, %rsp
 	pop %rbp
 	ret
@@ -52,7 +53,6 @@ fib:
 	jmp .L_end_0
 .L_else_0:
 .L_end_0:
-	addq $8, %rsp
 	subq $8, %rsp
 	subq $8, %rsp
 	movq 16(%rbp), %rax
@@ -60,36 +60,38 @@ fib:
 	pushq $1
 	movq -24(%rbp), %rax
 	movq -32(%rbp), %rbx
+	addq $16, %rsp
 	subq %rbx, %rax
 	movq %rax, -16(%rbp)
-	addq $16, %rsp
 	movq -16(%rbp), %rax
 	pushq %rax
 	call fib
+	addq $16, %rsp
 	pushq %rax
 	subq $8, %rsp
 	movq 16(%rbp), %rax
 	pushq %rax
 	pushq $2
-	movq -48(%rbp), %rax
-	movq -56(%rbp), %rbx
-	subq %rbx, %rax
-	movq %rax, -40(%rbp)
+	movq -32(%rbp), %rax
+	movq -40(%rbp), %rbx
 	addq $16, %rsp
-	movq -40(%rbp), %rax
+	subq %rbx, %rax
+	movq %rax, -24(%rbp)
+	movq -24(%rbp), %rax
 	pushq %rax
 	call fib
+	addq $16, %rsp
 	pushq %rax
-	movq -32(%rbp), %rax
-	movq -56(%rbp), %rbx
+	movq -16(%rbp), %rax
+	movq -24(%rbp), %rbx
+	addq $16, %rsp
 	addq %rbx, %rax
 	movq %rax, -8(%rbp)
-	addq $8, %rsp
 	movq -8(%rbp), %rax
 	movq %rbp, %rsp
 	pop %rbp
 	ret
-	addq $48, %rsp
+	addq $8, %rsp
 
 	movq %rbp, %rsp
 	pop %rbp
@@ -103,13 +105,13 @@ main:
 	movq -8(%rbp), %rax
 	pushq %rax
 	call fib
+	addq $16, %rsp
 	pushq %rax
-	movq -24(%rbp), %rax
+	movq -8(%rbp), %rax
 	movq %rbp, %rsp
 	pop %rbp
 	ret
 	addq $8, %rsp
-	addq $16, %rsp
 
 	movq %rbp, %rsp
 	pop %rbp

@@ -32,6 +32,7 @@ void Visitor::gen_expr(uptr<Node> &expr) {
         } else {
             throw std::runtime_error("[Visitor::gen_expr] def_obj wasn't FN or VAR or BINOP assignment");
         }
+        // [cleanup] FN, VAR, BINOP EQ never allocate stack space
         break;
     }
     case NType::RET: gen_ret(expr); break;
@@ -41,48 +42,12 @@ void Visitor::gen_expr(uptr<Node> &expr) {
     case NType::FN: gen_fcall(expr); break;
     case NType::IF: gen_if(expr); break;
     }
-
-    cleanup_hanging_children(expr);
-    tighten_stack();
 }
 
-void Visitor::cleanup_hanging_children(uptr<Node> &node) {
-    auto cleanup = [&](uptr<Node> &x) {
-        if (x && x->_addr != -1) {
-            m_scope.del_addr(x->_addr);
-            x->_addr = -1;
-        }
-    };
-
-    switch (node->type) {
-    case NType::BINOP: {
-        cleanup(node->op_l);
-        cleanup(node->op_r);
-    } break; // already cleaned up
-    case NType::CPD: {
-        for (auto &x : node->cpd_nodes) {
-            cleanup(x);
-        }
-    } break;
-    case NType::DEF: {
-        cleanup(node->def_obj);
-    } break;
-    case NType::FN: {
-        for (auto &x : node->fn_args) {
-            cleanup(x);
-        }
-    } break;
-    case NType::RET: {
-        cleanup(node->ret_val);
-    } break;
-    case NType::VAL: break;
-    case NType::VAR: break;
-    case NType::IF: {
-        // TODO this doesn't actually patch holes in the stack, need to clean up if_cond within function
-        cleanup(node->if_cond);
-        cleanup(node->if_body);
-        cleanup(node->if_else);
-    } break;
+void Visitor::cleanup_dangling(uptr<Node> &node) {
+    if (node && node->_addr != -1) {
+        m_scope.del_addr(node->_addr);
+        node->_addr = -1;
     }
 }
 
@@ -102,6 +67,10 @@ void Visitor::gen_cpd(uptr<Node> &cpd) {
     int rsp = m_rsp;
     for (auto &node : cpd->cpd_nodes) {
         gen_expr(node);
+
+        // [cleanup] if node wasn't given a handle here, it won't get one in the next expr
+        cleanup_dangling(node);
+        tighten_stack();
     }
     restore_rsp_scope(rsp);
     m_scope.pop_layer();
@@ -126,6 +95,7 @@ void Visitor::gen_fdef(uptr<Node> &fdef) {
              "\tmovq %rsp, %rbp\n\n";
 
     gen_expr(fdef->def_obj->fn_body);
+    // [cleanup] fn body never allocates stack space
 
     m_asm += "\n\tmovq %rbp, %rsp\n"
              "\tpop %rbp\n"
@@ -152,6 +122,14 @@ void Visitor::gen_fcall(uptr<Node> &fcall) {
 
     // call function, store return address on stack
     m_asm += "\tcall "+fcall->fn_name+"\n";
+
+    // [cleanup] args, which are dangling now. do it before pushing fcall result to stack
+    // IMPORTANT: none of these ops should touch rax.
+    m_scope.del_addr_top_n(sz(fcall->fn_args));
+    for (auto &arg : fcall->fn_args) cleanup_dangling(arg);
+    tighten_stack();
+    // [/cleanup]
+
     gen_stack_push("%rax", fcall->_addr);
 }
 
@@ -207,6 +185,11 @@ void Visitor::gen_binop(uptr<Node> &op) {
         gen_expr(op->op_r);
         gen_stack_mov_raw(stkloc(op->op_l->_addr), "%rax");
         gen_stack_mov_raw(stkloc(op->op_r->_addr), "%rbx");
+        // [cleanup] op_l and op_r are impossible to reference from here on out
+        cleanup_dangling(op->op_l);
+        cleanup_dangling(op->op_r);
+        tighten_stack();
+        // [/cleanup]
         m_asm += math_expr;
 
         string tg = "%rax";
@@ -227,6 +210,10 @@ void Visitor::gen_assign(uptr<Node> &op) {
     assert(op->op_l->type == NType::VAR);
     assert(m_scope.var_exists(op->op_l->var_name));
     gen_stack_mov(op->op_r->_addr, m_scope.find_var(op->op_l->var_name));
+
+    // [cleanup] op_r is useless now that op_l is the handle to op_r's value. op_l is VAR and doesn't need to be cleaned.
+    cleanup_dangling(op->op_r);
+    tighten_stack();
 }
 
 void Visitor::gen_if(uptr<Node> &node) {
@@ -236,12 +223,20 @@ void Visitor::gen_if(uptr<Node> &node) {
     // conditional
     gen_expr(node->if_cond);
     gen_stack_mov_raw(stkloc(addrof(node->if_cond)), "%rax");
+    // [cleanup] if_cond is dangling now
+    cleanup_dangling(node->if_cond);
+    tighten_stack();
+    // [/cleanup]
     m_asm += "\ttest %rax, %rax\n"
              "\tjz "+else_label+"\n";
 
     // body
     int rsp=m_rsp;
     gen_expr(node->if_body);
+    // [cleanup] if_body can technically be non-CPD (`if (x) 5;`) even if it does nothing, cleanup to be safe
+    cleanup_dangling(node->if_body);
+    tighten_stack();
+    // [/cleanup]
     restore_rsp_scope(rsp);
     m_asm += "\tjmp "+end_label+"\n";
 
@@ -249,6 +244,10 @@ void Visitor::gen_if(uptr<Node> &node) {
     m_asm += else_label+":\n";
     rsp=m_rsp;
     if (node->if_else) gen_expr(node->if_else);
+    // [cleanup] same reasoning as if_body
+    cleanup_dangling(node->if_else);
+    tighten_stack();
+    // [/cleanup]
     restore_rsp_scope(rsp);
     m_asm += end_label+":\n";
 }

@@ -8,7 +8,9 @@ public:
 
     string gen(uptr<Node> &root);
     void gen_expr(uptr<Node> &expr);
-    void cleanup_hanging_children(uptr<Node> &node);
+    // delete node's _addr in scope's stack tracking
+    void cleanup_dangling(uptr<Node> &node);
+    // adjust m_rsp according to the addresses currently necessary in m_scope
     void tighten_stack();
 
     void gen_cpd(uptr<Node> &cpd);

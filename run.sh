@@ -10,9 +10,6 @@ passed=0
 failed=0
 total=0
 
-echo "=== Sea Compiler Test Suite ==="
-echo
-
 # Find all .c files in tests/
 for c_file in tests/*.c; do
     if [[ ! -f "$c_file" ]]; then
@@ -24,7 +21,7 @@ for c_file in tests/*.c; do
     out_file="tests/${base_name}.out"
     test_exe="tests/${base_name}_test"
     
-    echo -n "Testing $base_name... "
+    echo -n "testing $base_name... "
     total=$((total + 1))
     
     # Check if expected output file exists
@@ -64,8 +61,8 @@ for c_file in tests/*.c; do
             passed=$((passed + 1))
         else
             echo -e "${RED}FAIL${NC}"
-            echo "  Expected stdout: '$expected_stdout'"
-            echo "  Actual stdout:   '$actual_stdout'"
+            echo "  expected stdout: '$expected_stdout'"
+            echo "  actual stdout:   '$actual_stdout'"
             failed=$((failed + 1))
         fi
     else
@@ -75,10 +72,10 @@ for c_file in tests/*.c; do
             passed=$((passed + 1))
         else
             echo -e "${RED}FAIL${NC}"
-            echo "  Expected return code: $expected_return_code, got: $actual_return_code"
+            echo "  expected return code: $expected_return_code, got: $actual_return_code"
             if [[ "$actual_stdout" != "$expected_stdout" ]]; then
-                echo "  Expected stdout: '$expected_stdout'"
-                echo "  Actual stdout:   '$actual_stdout'"
+                echo "  expected stdout: '$expected_stdout'"
+                echo "  actual stdout:   '$actual_stdout'"
             fi
             failed=$((failed + 1))
         fi
@@ -87,12 +84,12 @@ done
 
 echo
 echo "=== Test Summary ==="
-echo "Total tests: $total"
+echo "total tests: $total"
 
 if [[ $failed -eq 0 ]]; then
-    echo -e "${GREEN}All tests passed!${NC}"
+    echo -e "${GREEN}all tests passed!${NC}"
     exit 0
 else
-    echo -e "${RED}Some tests failed.${NC}"
+    echo -e "${RED}some tests failed.${NC}"
     exit 1
 fi

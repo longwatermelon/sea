@@ -24,6 +24,7 @@ public:
     void claim_addr(int addr);
     void del_addr(int addr);
     bool check_addr(int addr);
+    void del_addr_top_n(int n);
 
 private:
     vec<ScopeLayer> m_layers;

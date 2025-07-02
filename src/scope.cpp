@@ -67,6 +67,12 @@ void Scope::del_addr(int addr) {
     m_layers.back().addrs.erase(it);
 }
 
+void Scope::del_addr_top_n(int n) {
+    for (int i=1; i<=n; ++i) {
+        m_layers.back().addrs.erase(begin(m_layers.back().addrs));
+    }
+}
+
 bool Scope::check_addr(int addr) {
     return m_layers.back().addrs.find(addr) != end(m_layers.back().addrs);
 }
