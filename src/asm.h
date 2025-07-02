@@ -22,6 +22,8 @@ public:
     void gen_binop(uptr<Node> &op);
     void gen_assign(uptr<Node> &op);
 
+    void gen_if(uptr<Node> &node);
+
     // push val to stack, track its offset in addr
     void gen_stack_push(const string &val, int &addr);
     // reserve space for value
@@ -32,6 +34,8 @@ public:
     void gen_stack_mov(int src, int dst);
     // move btw/ directly specified locations
     void gen_stack_mov_raw(const string &src, const string &dst);
+    // addq on rsp if necessary
+    void restore_rsp_scope(int prev_rsp);
 
     int addrof(uptr<Node> &node);
 

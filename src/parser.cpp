@@ -132,6 +132,8 @@ uptr<Node> Parser::parse_var() {
     // keywords
     if (name == "return") {
         return parse_ret();
+    } else if (name == "if") {
+        return parse_if();
     }
 
     // not keyword, reference to something code-defined
@@ -170,5 +172,32 @@ vec<uptr<Node>> Parser::parse_fnargs() {
 uptr<Node> Parser::parse_ret() {
     uptr<Node> res = mkuq<Node>(NType::RET);
     res->ret_val = parse_expr();
+    return res;
+}
+
+uptr<Node> Parser::parse_if() {
+    uptr<Node> res = mkuq<Node>(NType::IF);
+    res->if_id = m_if_id;
+    m_if_id++;
+
+    // lparen
+    advance(TType::LPAREN);
+
+    // cond
+    res->if_cond = parse_expr();
+
+    // rparen
+    advance(TType::RPAREN);
+
+    // body
+    res->if_body = parse_expr();
+
+    if (curtok().type == TType::ID && curtok().val == "else") {
+        // else id
+        advance(TType::ID);
+        // else body
+        res->if_else = parse_expr();
+    }
+
     return res;
 }

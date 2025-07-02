@@ -24,10 +24,14 @@ private:
     vec<uptr<Node>> parse_fnargs();
     uptr<Node> parse_ret();
 
+    uptr<Node> parse_if();
+
 public:
     Token curtok() const {return m_toks[m_ind];}
 
 private:
     vec<Token> m_toks;
     ll m_ind;
+
+    ll m_if_id=0;
 };
