@@ -38,6 +38,7 @@ void Visitor::gen_expr(uptr<Node> &expr) {
     case NType::RET: gen_ret(expr); break;
     case NType::VAL: gen_val(expr); break;
     case NType::BINOP: gen_binop(expr); break;
+    case NType::UNOP: gen_unop(expr); break;
     case NType::VAR: gen_var(expr); break;
     case NType::FN: gen_fcall(expr); break;
     case NType::IF: gen_if(expr); break;
@@ -222,17 +223,26 @@ void Visitor::gen_unop(uptr<Node> &op) {
     } else if (op->unop_type == "&") {
         gen_getptr(op);
     }
-
-    // [cleanup] TODO what about addresses of literals?
 }
 
 void Visitor::gen_getptr(uptr<Node> &op) {
     gen_expr(op->unop_obj);
     m_asm += "\tleaq "+stkloc(addrof(op->unop_obj))+", %rax\n";
+    // [cleanup]
+    cleanup_dangling(op->unop_obj);
+    tighten_stack();
+    // [/cleanup]
     gen_stack_push("%rax", op->_addr);
 }
 
 void Visitor::gen_deref(uptr<Node> &op) {
+    gen_expr(op->unop_obj);
+    gen_stack_mov_raw(stkloc(addrof(op->unop_obj)), "%rax");
+    // [cleanup]
+    cleanup_dangling(op->unop_obj);
+    tighten_stack();
+    // [/cleanup]
+    gen_stack_push("(%rax)", op->_addr);
 }
 
 void Visitor::gen_if(uptr<Node> &node) {
@@ -313,6 +323,7 @@ int Visitor::addrof(uptr<Node> &node) {
     case NType::VAL: return node->_addr;
     case NType::VAR: return m_scope.find_var(node->var_name);
     case NType::BINOP: return node->_addr;
+    case NType::UNOP: return node->_addr;
     case NType::CPD:
     case NType::DEF:
     case NType::RET:
