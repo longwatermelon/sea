@@ -54,9 +54,6 @@ vec<Token> Lexer::tokenize() {
             }
             tokens.push_back(Token(TType::OP, op, m_line));
             advance();
-        } else if (c == '#') {
-            tokens.push_back(Token(TType::HASH, "#", m_line));
-            advance();
         } else {
             advance();
         }
