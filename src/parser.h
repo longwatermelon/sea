@@ -26,6 +26,8 @@ private:
 
     uptr<Node> parse_if();
 
+    uptr<Node> parse_unop();
+
 public:
     Token curtok() const {return m_toks[m_ind];}
 

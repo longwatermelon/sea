@@ -32,13 +32,14 @@ uptr<Node> Parser::parse_atom() {
         advance(TType::RPAREN);
         return res;
     }
+    case TType::OP: return parse_unop();
 
     // all useless
     case TType::SEMI:
     case TType::RPAREN:
     case TType::RBRACE:
     case TType::COMMA:
-    case TType::BINOP: break;
+        break;
     }
 
     return nullptr;
@@ -47,7 +48,7 @@ uptr<Node> Parser::parse_atom() {
 uptr<Node> Parser::parse_expr(int mn_prec) {
     uptr<Node> left = parse_atom();
 
-    while (curtok().type == TType::BINOP) {
+    while (curtok().type == TType::OP) {
         string op = curtok().val;
         int prec = precedence(op);
         if (prec < mn_prec) break;
@@ -199,6 +200,16 @@ uptr<Node> Parser::parse_if() {
         // else body
         res->if_else = parse_expr();
     }
+
+    return res;
+}
+
+uptr<Node> Parser::parse_unop() {
+    uptr<Node> res = mkuq<Node>(NType::UNOP);
+    res->unop_type = curtok().val;
+    advance(TType::OP);
+    // some high precedence to give unops higher prec than binops
+    res->unop_obj = parse_expr(100);
 
     return res;
 }

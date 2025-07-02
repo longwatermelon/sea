@@ -18,12 +18,10 @@ main:
 	addq $8, %rsp
 	subq $8, %rsp
 	subq $8, %rsp
-	movq -8(%rbp), %rax
-	pushq %rax
 	pushq $1
-	movq -32(%rbp), %rax
-	movq -40(%rbp), %rbx
-	addq $16, %rsp
+	movq -8(%rbp), %rax
+	movq -32(%rbp), %rbx
+	addq $8, %rsp
 	addq %rbx, %rax
 	movq %rax, -24(%rbp)
 	movq -24(%rbp), %rax
@@ -39,20 +37,16 @@ main:
 	subq $8, %rsp
 	subq $8, %rsp
 	subq $8, %rsp
-	movq -8(%rbp), %rax
-	pushq %rax
 	subq $8, %rsp
 	pushq $2
-	movq -16(%rbp), %rax
-	pushq %rax
-	movq -120(%rbp), %rax
-	movq -128(%rbp), %rbx
-	addq $16, %rsp
+	movq -112(%rbp), %rax
+	movq -16(%rbp), %rbx
+	addq $8, %rsp
 	imulq %rbx, %rax
-	movq %rax, -112(%rbp)
-	movq -104(%rbp), %rax
-	movq -112(%rbp), %rbx
-	addq $16, %rsp
+	movq %rax, -104(%rbp)
+	movq -8(%rbp), %rax
+	movq -104(%rbp), %rbx
+	addq $8, %rsp
 	addq %rbx, %rax
 	movq %rax, -96(%rbp)
 	pushq $1
@@ -61,36 +55,28 @@ main:
 	addq $16, %rsp
 	addq %rbx, %rax
 	movq %rax, -88(%rbp)
-	movq -8(%rbp), %rax
-	pushq %rax
 	movq -88(%rbp), %rax
-	movq -96(%rbp), %rbx
-	addq $16, %rsp
+	movq -8(%rbp), %rbx
+	addq $8, %rsp
 	subq %rbx, %rax
 	movq %rax, -80(%rbp)
-	movq -8(%rbp), %rax
-	pushq %rax
 	movq -80(%rbp), %rax
-	movq -88(%rbp), %rbx
-	addq $16, %rsp
+	movq -8(%rbp), %rbx
+	addq $8, %rsp
 	addq %rbx, %rax
 	movq %rax, -72(%rbp)
-	movq -8(%rbp), %rax
-	pushq %rax
 	movq -72(%rbp), %rax
-	movq -80(%rbp), %rbx
-	addq $16, %rsp
+	movq -8(%rbp), %rbx
+	addq $8, %rsp
 	subq %rbx, %rax
 	movq %rax, -64(%rbp)
 	subq $8, %rsp
 	subq $8, %rsp
 	subq $8, %rsp
-	movq -8(%rbp), %rax
-	pushq %rax
 	pushq $2
-	movq -96(%rbp), %rax
-	movq -104(%rbp), %rbx
-	addq $16, %rsp
+	movq -8(%rbp), %rax
+	movq -96(%rbp), %rbx
+	addq $8, %rsp
 	imulq %rbx, %rax
 	movq %rax, -88(%rbp)
 	subq $8, %rsp
@@ -102,11 +88,9 @@ main:
 	addq $16, %rsp
 	imulq %rbx, %rax
 	movq %rax, -104(%rbp)
-	movq -8(%rbp), %rax
-	pushq %rax
 	movq -104(%rbp), %rax
-	movq -112(%rbp), %rbx
-	addq $16, %rsp
+	movq -8(%rbp), %rbx
+	addq $8, %rsp
 	imulq %rbx, %rax
 	movq %rax, -96(%rbp)
 	movq -88(%rbp), %rax
@@ -137,30 +121,24 @@ main:
 	addq $16, %rsp
 	subq %rbx, %rax
 	movq %rax, -40(%rbp)
-	movq -16(%rbp), %rax
-	pushq %rax
 	movq -40(%rbp), %rax
-	movq -48(%rbp), %rbx
-	addq $16, %rsp
+	movq -16(%rbp), %rbx
+	addq $8, %rsp
 	addq %rbx, %rax
 	movq %rax, -32(%rbp)
 	subq $8, %rsp
 	pushq $2
 	subq $8, %rsp
-	movq -16(%rbp), %rax
-	pushq %rax
 	subq $8, %rsp
 	pushq $3
-	movq -16(%rbp), %rax
-	pushq %rax
-	movq -80(%rbp), %rax
-	movq -88(%rbp), %rbx
-	addq $16, %rsp
+	movq -72(%rbp), %rax
+	movq -16(%rbp), %rbx
+	addq $8, %rsp
 	imulq %rbx, %rax
-	movq %rax, -72(%rbp)
-	movq -64(%rbp), %rax
-	movq -72(%rbp), %rbx
-	addq $16, %rsp
+	movq %rax, -64(%rbp)
+	movq -16(%rbp), %rax
+	movq -64(%rbp), %rbx
+	addq $8, %rsp
 	addq %rbx, %rax
 	movq %rax, -56(%rbp)
 	movq -48(%rbp), %rax
@@ -178,11 +156,9 @@ main:
 	addq $8, %rsp
 	subq $8, %rsp
 	pushq $1
-	movq -16(%rbp), %rax
-	pushq %rax
 	movq -32(%rbp), %rax
-	movq -40(%rbp), %rbx
-	addq $16, %rsp
+	movq -16(%rbp), %rbx
+	addq $8, %rsp
 	addq %rbx, %rax
 	movq %rax, -24(%rbp)
 	movq -24(%rbp), %rax

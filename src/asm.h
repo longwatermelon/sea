@@ -24,6 +24,10 @@ public:
     void gen_binop(uptr<Node> &op);
     void gen_assign(uptr<Node> &op);
 
+    void gen_unop(uptr<Node> &op);
+    void gen_getptr(uptr<Node> &op);
+    void gen_deref(uptr<Node> &op);
+
     void gen_if(uptr<Node> &node);
 
     // push val to stack, track its offset in addr

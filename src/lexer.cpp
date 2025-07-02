@@ -52,7 +52,7 @@ vec<Token> Lexer::tokenize() {
                 op+='|';
                 advance();
             }
-            tokens.push_back(Token(TType::BINOP, op, m_line));
+            tokens.push_back(Token(TType::OP, op, m_line));
             advance();
         } else {
             advance();

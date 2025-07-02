@@ -150,10 +150,10 @@ void Visitor::gen_val(uptr<Node> &val) {
 }
 
 void Visitor::gen_var(uptr<Node> &var) {
-    gen_stack_mov_raw(stkloc(m_scope.find_var(var->var_name)), "%rax");
-    // TODO bake dtype into new VAL node for error typechecking later
-    var = mkuq<Node>(NType::VAL);
-    gen_stack_push("%rax", var->_addr);
+    // gen_stack_mov_raw(stkloc(m_scope.find_var(var->var_name)), "%rax");
+    // // TODO bake dtype into new VAL node for error typechecking later
+    // var = mkuq<Node>(NType::VAL);
+    // gen_stack_push("%rax", var->_addr);
 }
 
 void Visitor::gen_binop(uptr<Node> &op) {
@@ -183,8 +183,8 @@ void Visitor::gen_binop(uptr<Node> &op) {
         gen_stack_reserve(op->_addr);
         gen_expr(op->op_l);
         gen_expr(op->op_r);
-        gen_stack_mov_raw(stkloc(op->op_l->_addr), "%rax");
-        gen_stack_mov_raw(stkloc(op->op_r->_addr), "%rbx");
+        gen_stack_mov_raw(stkloc(addrof(op->op_l)), "%rax");
+        gen_stack_mov_raw(stkloc(addrof(op->op_r)), "%rbx");
         // [cleanup] op_l and op_r are impossible to reference from here on out
         cleanup_dangling(op->op_l);
         cleanup_dangling(op->op_r);
@@ -209,11 +209,30 @@ void Visitor::gen_assign(uptr<Node> &op) {
     // move result to var in op_l
     assert(op->op_l->type == NType::VAR);
     assert(m_scope.var_exists(op->op_l->var_name));
-    gen_stack_mov(op->op_r->_addr, m_scope.find_var(op->op_l->var_name));
+    gen_stack_mov(addrof(op->op_r), m_scope.find_var(op->op_l->var_name));
 
     // [cleanup] op_r is useless now that op_l is the handle to op_r's value. op_l is VAR and doesn't need to be cleaned.
     cleanup_dangling(op->op_r);
     tighten_stack();
+}
+
+void Visitor::gen_unop(uptr<Node> &op) {
+    if (op->unop_type == "*") {
+        gen_deref(op);
+    } else if (op->unop_type == "&") {
+        gen_getptr(op);
+    }
+
+    // [cleanup] TODO what about addresses of literals?
+}
+
+void Visitor::gen_getptr(uptr<Node> &op) {
+    gen_expr(op->unop_obj);
+    m_asm += "\tleaq "+stkloc(addrof(op->unop_obj))+", %rax\n";
+    gen_stack_push("%rax", op->_addr);
+}
+
+void Visitor::gen_deref(uptr<Node> &op) {
 }
 
 void Visitor::gen_if(uptr<Node> &node) {

@@ -11,7 +11,7 @@ enum class TType {
     INT,
     STR,
     COMMA,
-    BINOP,
+    OP,
 };
 
 struct Token {

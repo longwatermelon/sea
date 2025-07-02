@@ -10,7 +10,8 @@ enum class NType {
     VAR, // variable
     RET, // return
     BINOP, // binary operation
-    IF,
+    IF, // if statement
+    UNOP, // unary operator
 };
 
 enum class DType {
@@ -69,4 +70,8 @@ struct Node {
     // if
     uptr<Node> if_cond, if_body, if_else;
     int if_id;
+
+    // unop
+    uptr<Node> unop_obj;
+    string unop_type;
 };

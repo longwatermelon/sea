@@ -13,7 +13,7 @@ string ttype2str(TType type) {
         case TType::INT: return "INT";
         case TType::STR: return "STR";
         case TType::COMMA: return ",";
-        case TType::BINOP: return "BINOP";
+        case TType::OP: return "OP";
         default: return "UNKNOWN";
     }
 }
