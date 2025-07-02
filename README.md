@@ -12,3 +12,12 @@ C compiler spinoff, eventually aiming for a bootstrapping compiler. Generates x8
 6. **Output**: Runnable program
 
 Build with `make` and run `./a.out` to compile the example, then `./run.sh` to run it.
+
+## Adding Features
+
+### New Node Type
+
+1. In `src/node.h`, create a new enum type and fill out its fields in the `Node` struct.
+2. In `src/parser.{h,cpp}`, implement a new function to parse this kind of node.
+3. In `src/asm.{h,cpp}`, implement a new function to generate asm for this kind of node.
+4. Ensure assembly generation includes the asm generation itself AND stack cleanup as you go, to prevent stack holes.
