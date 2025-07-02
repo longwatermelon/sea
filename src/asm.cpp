@@ -192,6 +192,12 @@ void Visitor::gen_binop(uptr<Node> &op) {
         math_expr = "\tcqto\n\tidivq %rbx\n";
     } else if (op->op_type == "%") {
         math_expr = "\tcqto\n\tidivq %rbx\n";
+    } else if (op->op_type == "==") {
+        math_expr = "\tcmp %rbx, %rax\n"
+                    "\tsete %al\n"
+                    "\tmovzbl %al, %eax\n";
+    } else if (op->op_type == "||") {
+        math_expr = "\tor %rbx, %rax\n";
     } else {
         math=false;
     }
