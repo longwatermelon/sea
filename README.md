@@ -11,7 +11,7 @@ C compiler spinoff, eventually aiming for a bootstrapping compiler. Generates x8
 5. **Assembly**: System calls `as` and `ld` to create executable
 6. **Output**: Runnable program
 
-Build with `make` and run `./a.out` to compile the example, then `./run.sh` to run it.
+Build with `make` and run `./a.out [file]` to compile a file, or `./run.sh` to run all tests.
 
 ## Adding Features
 
