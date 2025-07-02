@@ -4,7 +4,6 @@
 
 struct ScopeLayer {
     map<string,int> vdefs;
-    map<string,int> fdefs;
     map<string,DType> vdtypes;
     set<int> addrs;
 };
@@ -19,8 +18,10 @@ public:
     bool var_exists(const string &name);
     bool fn_exists(const string &name);
     int find_var(const string &name);
-    int find_fn(const string &name);
+    const vec<DType> &find_fn(const string &name);
     void create_var(const string &name, int addr, DType dtype);
+    void create_fn(const string &name, vec<DType> args);
+
     void claim_addr(int addr);
     void del_addr(int addr);
     bool check_addr(int addr);
@@ -28,4 +29,5 @@ public:
 
 private:
     vec<ScopeLayer> m_layers;
+    map<string, vec<DType>> m_fdefs;
 };

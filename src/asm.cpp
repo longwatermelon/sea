@@ -79,6 +79,18 @@ void Visitor::gen_cpd(uptr<Node> &cpd) {
 }
 
 void Visitor::gen_fdef(uptr<Node> &fdef) {
+    // add to scope
+    vec<DType> scope_args;
+    for (auto &arg : fdef->def_obj->fn_args) {
+        scope_args.push_back(arg->dtype);
+    }
+    m_scope.create_fn(fdef->def_obj->fn_name, scope_args);
+
+    // declaration?
+    if (!fdef->def_obj->fn_body) {
+        return;
+    }
+
     // prep separate scope
     m_scope.push_layer();
     int prev_rsp = m_rsp;
@@ -109,6 +121,7 @@ void Visitor::gen_fdef(uptr<Node> &fdef) {
 }
 
 void Visitor::gen_fcall(uptr<Node> &fcall) {
+    // TODO type-check against actual args from m_scope
     // eval args, create addresses
     for (auto &arg : fcall->fn_args) {
         gen_expr(arg);

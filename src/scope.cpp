@@ -23,15 +23,8 @@ int Scope::find_var(const string &name) {
     throw std::runtime_error("[Scope::find_var] '"+name+"' not found\n");
 }
 
-int Scope::find_fn(const string &name) {
-    for (auto it = m_layers.rbegin(); it != m_layers.rend(); ++it) {
-        auto found = it->fdefs.find(name);
-        if (found != it->fdefs.end()) {
-            return found->second;
-        }
-    }
-
-    throw std::runtime_error("[Scope::find_fn] '"+name+"' not found\n");
+const vec<DType> &Scope::find_fn(const string &name) {
+    return m_fdefs[name];
 }
 
 bool Scope::var_exists(const string &name) {
@@ -44,17 +37,16 @@ bool Scope::var_exists(const string &name) {
 }
 
 bool Scope::fn_exists(const string &name) {
-    for (auto it = m_layers.rbegin(); it != m_layers.rend(); ++it) {
-        if (it->fdefs.find(name) != it->fdefs.end()) {
-            return true;
-        }
-    }
-    return false;
+    return m_fdefs.find(name) != end(m_fdefs);
 }
 
 void Scope::create_var(const string &name, int addr, DType dtype) {
     m_layers.back().vdefs[name] = addr;
     m_layers.back().vdtypes[name] = dtype;
+}
+
+void Scope::create_fn(const string &name, vec<DType> args) {
+    m_fdefs[name] = args;
 }
 
 void Scope::claim_addr(int addr) {
