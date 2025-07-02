@@ -34,3 +34,9 @@ inline int precedence(const string &op) {
 inline string stkloc(int addr) {
     return std::to_string(addr)+"(%rbp)";
 }
+
+enum class TType;
+enum class NType;
+
+string ttype2str(TType type);
+string ntype2str(NType type);

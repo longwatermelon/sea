@@ -35,46 +35,54 @@ for c_file in tests/*.c; do
     
     # Read expected return code and stdout from .out file
     expected_return_code=$(grep "^RETURN_CODE:" "$out_file" | cut -d: -f2)
-    expected_stdout=$(sed -n '/^STDOUT:/,$p' "$out_file" | tail -n +2)
+    expected_stdout=$(grep "^STDOUT:" "$out_file" | cut -d: -f2-)
     
-    # Compile with Sea compiler
-    if ! ./a.out "$c_file" > /dev/null 2>&1; then
-        echo -e "${RED}FAIL${NC} (compilation failed)"
-        failed=$((failed + 1))
-        continue
-    fi
+    # Compile with Sea compiler and capture output
+    compilation_output=$(./a.out "$c_file" 2>&1)
+    compilation_succeeded=$?
     
     # The Sea compiler creates an executable with the same base name as input
     expected_exe="tests/${base_name}"
-    if [[ ! -f "$expected_exe" ]]; then
-        echo -e "${RED}FAIL${NC} (no executable created)"
-        failed=$((failed + 1))
-        continue
+    
+    if [[ $compilation_succeeded -eq 0 && -f "$expected_exe" ]]; then
+        # Compilation succeeded - run the executable
+        mv "$expected_exe" "$test_exe"
+        actual_stdout=$("$test_exe" 2>&1)
+        actual_return_code=$?
+        rm -f "$test_exe"
+    else
+        # Compilation failed - use compilation error output
+        actual_stdout="$compilation_output"
+        actual_return_code=$compilation_succeeded
     fi
     
-    # Move the executable to our test name for clarity
-    mv "$expected_exe" "$test_exe"
-    
-    # Run the program and capture output and return code
-    actual_stdout=$("$test_exe" 2>&1)
-    actual_return_code=$?
-    
-    # Compare results
-    if [[ "$actual_return_code" == "$expected_return_code" ]] && [[ "$actual_stdout" == "$expected_stdout" ]]; then
-        echo -e "${GREEN}PASS${NC}"
-        passed=$((passed + 1))
-    else
-        echo -e "${RED}FAIL${NC}"
-        echo "  Expected return code: $expected_return_code, got: $actual_return_code"
-        if [[ "$actual_stdout" != "$expected_stdout" ]]; then
+    # Compare results - ignore return code for compilation error tests
+    if [[ $compilation_succeeded -ne 0 ]]; then
+        # Compilation failed - this is a compilation error test, ignore exit code
+        if [[ "$actual_stdout" == "$expected_stdout" ]]; then
+            echo -e "${GREEN}PASS${NC}"
+            passed=$((passed + 1))
+        else
+            echo -e "${RED}FAIL${NC}"
             echo "  Expected stdout: '$expected_stdout'"
             echo "  Actual stdout:   '$actual_stdout'"
+            failed=$((failed + 1))
         fi
-        failed=$((failed + 1))
+    else
+        # Compilation succeeded - normal test, compare both return code and stdout
+        if [[ "$actual_return_code" == "$expected_return_code" ]] && [[ "$actual_stdout" == "$expected_stdout" ]]; then
+            echo -e "${GREEN}PASS${NC}"
+            passed=$((passed + 1))
+        else
+            echo -e "${RED}FAIL${NC}"
+            echo "  Expected return code: $expected_return_code, got: $actual_return_code"
+            if [[ "$actual_stdout" != "$expected_stdout" ]]; then
+                echo "  Expected stdout: '$expected_stdout'"
+                echo "  Actual stdout:   '$actual_stdout'"
+            fi
+            failed=$((failed + 1))
+        fi
     fi
-    
-    # Clean up test executable
-    rm -f "$test_exe"
 done
 
 echo

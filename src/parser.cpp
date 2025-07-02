@@ -74,7 +74,7 @@ uptr<Node> Parser::parse_cpd() {
     uptr<Node> expr = parse_expr();
     while (expr != nullptr) {
         cpd->cpd_nodes.push_back(std::move(expr));
-        if (curtok().type == TType::SEMI) advance(TType::SEMI);
+        if (m_ind>0 && m_toks[m_ind-1].val != "}") advance(TType::SEMI);
         expr = parse_expr();
     }
 

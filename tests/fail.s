@@ -1,0 +1,31 @@
+.section .text
+	.global _start
+
+_start:
+	call main
+	movq %rax, %rdi
+	movq $60, %rax
+	syscall
+
+main:
+	push %rbp
+	movq %rsp, %rbp
+
+	subq $8, %rsp
+	pushq $5
+	movq -16(%rbp), %rax
+	movq %rax, -8(%rbp)
+	addq $8, %rsp
+	movq -8(%rbp), %rax
+	pushq %rax
+	movq -16(%rbp), %rax
+	movq %rbp, %rsp
+	pop %rbp
+	ret
+	addq $8, %rsp
+	addq $8, %rsp
+
+	movq %rbp, %rsp
+	pop %rbp
+	ret
+
