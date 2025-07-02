@@ -20,7 +20,7 @@ public:
     bool fn_exists(const string &name);
     int find_var(const string &name);
     int find_fn(const string &name);
-    void create_var(const string &name, int addr);
+    void create_var(const string &name, int addr, DType dtype);
     void claim_addr(int addr);
     void del_addr(int addr);
     bool check_addr(int addr);

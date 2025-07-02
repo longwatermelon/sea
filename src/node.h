@@ -50,11 +50,11 @@ struct Node {
 
     // def
     uptr<Node> def_obj;
-    uptr<Node> def_as;
 
     // fn
     string fn_name;
     vec<uptr<Node>> fn_args;
+    uptr<Node> fn_body;
 
     // var
     string var_name;

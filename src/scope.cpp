@@ -52,8 +52,9 @@ bool Scope::fn_exists(const string &name) {
     return false;
 }
 
-void Scope::create_var(const string &name, int addr) {
+void Scope::create_var(const string &name, int addr, DType dtype) {
     m_layers.back().vdefs[name] = addr;
+    m_layers.back().vdtypes[name] = dtype;
 }
 
 void Scope::claim_addr(int addr) {

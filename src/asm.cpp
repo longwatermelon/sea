@@ -23,11 +23,11 @@ void Visitor::gen_expr(uptr<Node> &expr) {
         } else if (expr->def_obj->type == NType::VAR) {
             int addr;
             gen_stack_reserve(addr);
-            m_scope.create_var(expr->def_obj->var_name, addr);
+            m_scope.create_var(expr->def_obj->var_name, addr, expr->dtype);
         } else if (expr->def_obj->type == NType::BINOP && expr->def_obj->op_type == "=") {
             int addr;
             gen_stack_reserve(addr);
-            m_scope.create_var(expr->def_obj->op_l->var_name, addr);
+            m_scope.create_var(expr->def_obj->op_l->var_name, addr, expr->dtype);
             gen_expr(expr->def_obj);
         } else {
             throw std::runtime_error("[Visitor::gen_expr] def_obj wasn't FN or VAR or BINOP assignment");
@@ -65,7 +65,6 @@ void Visitor::cleanup_hanging_children(uptr<Node> &node) {
         }
     } break;
     case NType::DEF: {
-        cleanup(node->def_as);
         cleanup(node->def_obj);
     } break;
     case NType::FN: {
@@ -117,7 +116,7 @@ void Visitor::gen_fdef(uptr<Node> &fdef) {
     // prep params
     int addr=16;
     for (auto &param : fdef->def_obj->fn_args) {
-        m_scope.create_var(param->def_obj->var_name, addr);
+        m_scope.create_var(param->def_obj->var_name, addr, param->dtype);
         addr+=8;
     }
 
@@ -126,7 +125,7 @@ void Visitor::gen_fdef(uptr<Node> &fdef) {
     m_asm += "\tpush %rbp\n"
              "\tmovq %rsp, %rbp\n\n";
 
-    gen_expr(fdef->def_as);
+    gen_expr(fdef->def_obj->fn_body);
 
     m_asm += "\n\tmovq %rbp, %rsp\n"
              "\tpop %rbp\n"

@@ -109,13 +109,10 @@ uptr<Node> Parser::parse_id() {
         uptr<Node> res = mkuq<Node>(NType::DEF, dtype);
         if (nxt->type == NType::FN) {
             res->def_obj = std::move(nxt);
-            res->def_as = parse_expr();
         } else if (nxt->type == NType::VAR) {
             res->def_obj = std::move(nxt);
-            res->def_as = nullptr;
         } else if (nxt->type == NType::BINOP && nxt->op_type == "=") {
             res->def_obj = std::move(nxt);
-            res->def_as = nullptr;
         }
 
         return res;
@@ -142,6 +139,10 @@ uptr<Node> Parser::parse_var() {
         res = mkuq<Node>(NType::FN);
         res->fn_name = name;
         res->fn_args = parse_fnargs();
+
+        if (curtok().type == TType::LBRACE) {
+            res->fn_body = parse_expr();
+        }
     } else {
         res = mkuq<Node>(NType::VAR);
         res->var_name = name;
