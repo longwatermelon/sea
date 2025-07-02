@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
+RED='\033[1;91m'     # Bold bright red
+GREEN='\033[1;92m'   # Bold bright green
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
@@ -80,8 +80,6 @@ done
 echo
 echo "=== Test Summary ==="
 echo "Total tests: $total"
-echo -e "Passed: ${GREEN}$passed${NC}"
-echo -e "Failed: ${RED}$failed${NC}"
 
 if [[ $failed -eq 0 ]]; then
     echo -e "${GREEN}All tests passed!${NC}"
