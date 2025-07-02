@@ -39,7 +39,7 @@ void Visitor::gen_expr(uptr<Node> &expr) {
     case NType::VAL: gen_val(expr); break;
     case NType::BINOP: gen_binop(expr); break;
     case NType::UNOP: gen_unop(expr); break;
-    case NType::VAR: gen_var(expr); break;
+    case NType::VAR: break; // VAR is just a string handle to m_scope
     case NType::FN: gen_fcall(expr); break;
     case NType::IF: gen_if(expr); break;
     }
@@ -150,13 +150,6 @@ void Visitor::gen_val(uptr<Node> &val) {
     }
 }
 
-void Visitor::gen_var(uptr<Node> &var) {
-    // gen_stack_mov_raw(stkloc(m_scope.find_var(var->var_name)), "%rax");
-    // // TODO bake dtype into new VAL node for error typechecking later
-    // var = mkuq<Node>(NType::VAL);
-    // gen_stack_push("%rax", var->_addr);
-}
-
 void Visitor::gen_binop(uptr<Node> &op) {
     bool math=true;
     string math_expr;
@@ -207,14 +200,23 @@ void Visitor::gen_assign(uptr<Node> &op) {
     // compute op_r
     gen_expr(op->op_r);
 
-    // move result to var in op_l
-    assert(op->op_l->type == NType::VAR);
-    assert(m_scope.var_exists(op->op_l->var_name));
-    gen_stack_mov(addrof(op->op_r), m_scope.find_var(op->op_l->var_name));
+    if (op->op_l->type == NType::VAR) {
+        // move result to var in op_l
+        assert(m_scope.var_exists(op->op_l->var_name));
+        gen_stack_mov(addrof(op->op_r), m_scope.find_var(op->op_l->var_name));
 
-    // [cleanup] op_r is useless now that op_l is the handle to op_r's value. op_l is VAR and doesn't need to be cleaned.
-    cleanup_dangling(op->op_r);
-    tighten_stack();
+        // [cleanup] op_r is useless now that op_l is the handle to op_r's value. op_l is VAR and doesn't need to be cleaned.
+        cleanup_dangling(op->op_r);
+        tighten_stack();
+    } else if (op->op_l->type == NType::UNOP && op->op_l->unop_type == "*") {
+        // eval dereferenced object, get loc of it
+        gen_expr(op->op_l->unop_obj);
+        gen_stack_mov_raw(stkloc(addrof(op->op_l->unop_obj)), "%rbx");
+        gen_stack_mov_raw(stkloc(addrof(op->op_r)), "%rax");
+        gen_stack_mov_raw("%rax", "(%rbx)");
+
+        // [cleanup] TODO
+    }
 }
 
 void Visitor::gen_unop(uptr<Node> &op) {
@@ -226,12 +228,19 @@ void Visitor::gen_unop(uptr<Node> &op) {
 }
 
 void Visitor::gen_getptr(uptr<Node> &op) {
-    gen_expr(op->unop_obj);
-    m_asm += "\tleaq "+stkloc(addrof(op->unop_obj))+", %rax\n";
-    // [cleanup]
-    cleanup_dangling(op->unop_obj);
-    tighten_stack();
-    // [/cleanup]
+    if (op->unop_obj->type == NType::VAR) {
+        m_asm += "\tleaq "+stkloc(addrof(op->unop_obj))+", %rax\n";
+        // [cleanup]
+        cleanup_dangling(op->unop_obj);
+        tighten_stack();
+        // [/cleanup]
+        gen_stack_push("%rax", op->_addr);
+    } else if (op->unop_obj->type == NType::UNOP && op->unop_obj->unop_type == "*") {
+        // LVALUE DEREF
+        gen_expr(op->unop_obj->unop_obj);
+        gen_stack_mov_raw(stkloc(addrof(op->unop_obj->unop_obj)), "%rax");
+    }
+
     gen_stack_push("%rax", op->_addr);
 }
 
