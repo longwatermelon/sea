@@ -13,16 +13,16 @@ total=0
 echo "=== Sea Compiler Test Suite ==="
 echo
 
-# Find all .c files in examples/
-for c_file in examples/*.c; do
+# Find all .c files in tests/
+for c_file in tests/*.c; do
     if [[ ! -f "$c_file" ]]; then
         continue
     fi
     
-    # Extract base name (e.g., prog from examples/prog.c)
+    # Extract base name (e.g., prog from tests/prog.c)
     base_name=$(basename "$c_file" .c)
-    out_file="examples/${base_name}.out"
-    test_exe="examples/${base_name}_test"
+    out_file="tests/${base_name}.out"
+    test_exe="tests/${base_name}_test"
     
     echo -n "Testing $base_name... "
     total=$((total + 1))
@@ -45,7 +45,7 @@ for c_file in examples/*.c; do
     fi
     
     # The Sea compiler creates an executable with the same base name as input
-    expected_exe="examples/${base_name}"
+    expected_exe="tests/${base_name}"
     if [[ ! -f "$expected_exe" ]]; then
         echo -e "${RED}FAIL${NC} (no executable created)"
         failed=$((failed + 1))
