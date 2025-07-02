@@ -42,6 +42,7 @@ void Visitor::gen_expr(uptr<Node> &expr) {
     case NType::VAR: break; // VAR is just a string handle to m_scope
     case NType::FN: gen_fcall(expr); break;
     case NType::IF: gen_if(expr); break;
+    case NType::WHILE: gen_while(expr); break;
     }
 }
 
@@ -60,7 +61,7 @@ void Visitor::tighten_stack() {
     if (dif==0) return;
 
     m_rsp+=dif;
-    m_asm += "\taddq $"+std::to_string(dif)+", %rsp\n";
+    m_asm += "\t# tighten_stack\n\taddq $"+std::to_string(dif)+", %rsp\n";
 }
 
 void Visitor::gen_cpd(uptr<Node> &cpd) {
@@ -166,6 +167,10 @@ void Visitor::gen_binop(uptr<Node> &op) {
     } else if (op->op_type == "==") {
         math_expr = "\tcmp %rbx, %rax\n"
                     "\tsete %al\n"
+                    "\tmovzbl %al, %eax\n";
+    } else if (op->op_type == "!=") {
+        math_expr = "\tcmp %rbx, %rax\n"
+                    "\tsetne %al\n"
                     "\tmovzbl %al, %eax\n";
     } else if (op->op_type == "||") {
         math_expr = "\tor %rbx, %rax\n";
@@ -290,6 +295,33 @@ void Visitor::gen_if(uptr<Node> &node) {
     m_asm += end_label+":\n";
 }
 
+void Visitor::gen_while(uptr<Node> &node) {
+    string start_label = ".L_start_"+std::to_string(node->while_id);
+    string end_label = ".L_end_"+std::to_string(node->while_id);
+    m_asm += start_label+":\n";
+
+    // cond
+    gen_expr(node->while_cond);
+    gen_stack_mov_raw(stkloc(addrof(node->while_cond)), "%rax");
+    // [cleanup] while_cond is dangling now
+    cleanup_dangling(node->while_cond);
+    tighten_stack();
+    // [/cleanup]
+    m_asm += "\ttest %rax, %rax\n"
+             "\tjz "+end_label+"\n";
+
+    // body
+    int rsp=m_rsp;
+    gen_expr(node->while_body);
+    // [cleanup] same reasoning as gen_if
+    cleanup_dangling(node->while_body);
+    tighten_stack();
+    // [/cleanup]
+    restore_rsp_scope(rsp);
+    m_asm += "\tjmp "+start_label+"\n";
+    m_asm += end_label+":\n";
+}
+
 void Visitor::gen_stack_push(const string &val, int &addr) {
     m_rsp-=8;
     m_scope.claim_addr(m_rsp);
@@ -321,7 +353,7 @@ void Visitor::gen_stack_mov_raw(const string &src, const string &dst) {
 
 void Visitor::restore_rsp_scope(int prev_rsp) {
     if (m_rsp != prev_rsp) {
-        m_asm += "\taddq $"+std::to_string(prev_rsp-m_rsp)+", %rsp\n";
+        m_asm += "\t# restore_rsp_scope\n\taddq $"+std::to_string(prev_rsp-m_rsp)+", %rsp\n";
         m_rsp = prev_rsp;
     }
 }
@@ -337,6 +369,7 @@ int Visitor::addrof(uptr<Node> &node) {
     case NType::DEF:
     case NType::RET:
     case NType::IF:
+    case NType::WHILE:
         break;
     }
 

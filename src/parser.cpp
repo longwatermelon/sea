@@ -132,6 +132,8 @@ uptr<Node> Parser::parse_var() {
         return parse_ret();
     } else if (name == "if") {
         return parse_if();
+    } else if (name == "while") {
+        return parse_while();
     }
 
     // not keyword, reference to something code-defined
@@ -179,27 +181,38 @@ uptr<Node> Parser::parse_ret() {
 
 uptr<Node> Parser::parse_if() {
     uptr<Node> res = mkuq<Node>(NType::IF);
-    res->if_id = m_if_id;
-    m_if_id++;
-
-    // lparen
-    advance(TType::LPAREN);
+    res->if_id = m_label_id;
+    m_label_id++;
 
     // cond
+    advance(TType::LPAREN);
     res->if_cond = parse_expr();
-
-    // rparen
     advance(TType::RPAREN);
 
     // body
     res->if_body = parse_expr();
 
+    // else block
     if (curtok().type == TType::ID && curtok().val == "else") {
-        // else id
         advance(TType::ID);
-        // else body
         res->if_else = parse_expr();
     }
+
+    return res;
+}
+
+uptr<Node> Parser::parse_while() {
+    uptr<Node> res = mkuq<Node>(NType::WHILE);
+    res->while_id = m_label_id;
+    m_label_id++;
+
+    // cond
+    advance(TType::LPAREN);
+    res->while_cond = parse_expr();
+    advance(TType::RPAREN);
+
+    // body
+    res->while_body = parse_expr();
 
     return res;
 }

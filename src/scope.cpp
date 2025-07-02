@@ -74,5 +74,9 @@ void Scope::del_addr_top_n(int n) {
 }
 
 bool Scope::check_addr(int addr) {
-    return m_layers.back().addrs.find(addr) != end(m_layers.back().addrs);
+    bool ans=false;
+    for (auto &l : m_layers) {
+        ans|=l.addrs.find(addr) != end(l.addrs);
+    }
+    return ans;
 }

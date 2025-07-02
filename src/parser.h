@@ -25,6 +25,7 @@ private:
     uptr<Node> parse_ret();
 
     uptr<Node> parse_if();
+    uptr<Node> parse_while();
 
     uptr<Node> parse_unop();
 
@@ -35,5 +36,5 @@ private:
     vec<Token> m_toks;
     ll m_ind;
 
-    ll m_if_id=0;
+    ll m_label_id=0;
 };

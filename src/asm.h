@@ -27,6 +27,7 @@ public:
     void gen_deref(uptr<Node> &op);
 
     void gen_if(uptr<Node> &node);
+    void gen_while(uptr<Node> &node);
 
     // push val to stack, track its offset in addr
     void gen_stack_push(const string &val, int &addr);

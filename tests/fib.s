@@ -16,6 +16,7 @@ fib:
 	pushq $0
 	movq 16(%rbp), %rax
 	movq -24(%rbp), %rbx
+	# tighten_stack
 	addq $8, %rsp
 	cmp %rbx, %rax
 	sete %al
@@ -25,6 +26,7 @@ fib:
 	pushq $1
 	movq 16(%rbp), %rax
 	movq -32(%rbp), %rbx
+	# tighten_stack
 	addq $8, %rsp
 	cmp %rbx, %rax
 	sete %al
@@ -32,10 +34,12 @@ fib:
 	movq %rax, -24(%rbp)
 	movq -16(%rbp), %rax
 	movq -24(%rbp), %rbx
+	# tighten_stack
 	addq $16, %rsp
 	or %rbx, %rax
 	movq %rax, -8(%rbp)
 	movq -8(%rbp), %rax
+	# tighten_stack
 	addq $8, %rsp
 	test %rax, %rax
 	jz .L_else_0
@@ -51,28 +55,33 @@ fib:
 	pushq $1
 	movq 16(%rbp), %rax
 	movq -24(%rbp), %rbx
+	# tighten_stack
 	addq $8, %rsp
 	subq %rbx, %rax
 	movq %rax, -16(%rbp)
 	movq -16(%rbp), %rax
 	pushq %rax
 	call fib
+	# tighten_stack
 	addq $16, %rsp
 	pushq %rax
 	subq $8, %rsp
 	pushq $2
 	movq 16(%rbp), %rax
 	movq -32(%rbp), %rbx
+	# tighten_stack
 	addq $8, %rsp
 	subq %rbx, %rax
 	movq %rax, -24(%rbp)
 	movq -24(%rbp), %rax
 	pushq %rax
 	call fib
+	# tighten_stack
 	addq $16, %rsp
 	pushq %rax
 	movq -16(%rbp), %rax
 	movq -24(%rbp), %rbx
+	# tighten_stack
 	addq $16, %rsp
 	addq %rbx, %rax
 	movq %rax, -8(%rbp)
@@ -80,6 +89,7 @@ fib:
 	movq %rbp, %rsp
 	pop %rbp
 	ret
+	# restore_rsp_scope
 	addq $8, %rsp
 
 	movq %rbp, %rsp
@@ -94,12 +104,14 @@ main:
 	movq -8(%rbp), %rax
 	pushq %rax
 	call fib
+	# tighten_stack
 	addq $16, %rsp
 	pushq %rax
 	movq -8(%rbp), %rax
 	movq %rbp, %rsp
 	pop %rbp
 	ret
+	# restore_rsp_scope
 	addq $8, %rsp
 
 	movq %rbp, %rsp

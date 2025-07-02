@@ -12,6 +12,7 @@ enum class NType {
     BINOP, // binary operation
     IF, // if statement
     UNOP, // unary operator
+    WHILE, // while loop
 };
 
 enum class DType {
@@ -74,4 +75,8 @@ struct Node {
     // unop
     uptr<Node> unop_obj;
     string unop_type;
+
+    // while
+    uptr<Node> while_cond, while_body;
+    int while_id;
 };
