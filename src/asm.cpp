@@ -2,13 +2,13 @@
 #include <cassert>
 
 string Visitor::gen(uptr<Node> &root) {
-    m_asm = ".section .text\n"
-            "\t.global _start\n\n"
-            "_start:\n"
-            "\tcall main\n"
-            "\tmovq %rax, %rdi\n"
-            "\tmovq $60, %rax\n"
-            "\tsyscall\n\n";
+    // m_asm = ".section .text\n"
+    //         "\t.global _start\n\n"
+    //         "_start:\n"
+    //         "\tcall main\n"
+    //         "\tmovq %rax, %rdi\n"
+    //         "\tmovq $60, %rax\n"
+    //         "\tsyscall\n\n";
 
     gen_expr(root);
     return m_asm;
@@ -104,7 +104,7 @@ void Visitor::gen_fdef(uptr<Node> &fdef) {
     }
 
     // fdef
-    m_asm += fdef->def_obj->fn_name+":\n";
+    m_asm += ".global "+fdef->def_obj->fn_name+"\n"+fdef->def_obj->fn_name+":\n";
     m_asm += "\tpush %rbp\n"
              "\tmovq %rsp, %rbp\n\n";
 
