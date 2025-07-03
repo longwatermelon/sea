@@ -285,6 +285,8 @@ void Visitor::gen_binop(uptr<Node> &op) {
                     "\tmovzbl %al, %eax\n";
     } else if (op->op_type == "||") {
         math_expr = "\tor %rbx, %rax\n";
+    } else if (op->op_type == "&&") {
+        math_expr = "\tand %rbx, %rax\n";
     } else {
         math=false;
     }
