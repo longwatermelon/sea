@@ -1,6 +1,8 @@
 #include "asm.h"
 #include <cassert>
 
+ll Visitor::m_galloc_id = 0;
+
 string Visitor::gen(uptr<Node> &root) {
     // m_asm = ".section .text\n"
     //         "\t.global _start\n\n"
@@ -140,13 +142,16 @@ void Visitor::gen_fdef(uptr<Node> &fdef) {
 
 void Visitor::gen_fcall(uptr<Node> &fcall) {
     if (fcall->fn_name == "syscall") {
-        gen_syscall(fcall);
+        gen_builtin_syscall(fcall);
         return;
     } else if (fcall->fn_name == "stalloc") {
-        gen_stalloc(fcall);
+        gen_builtin_stalloc(fcall);
         return;
     } else if (fcall->fn_name == "sizeof") {
-        gen_sizeof(fcall);
+        gen_builtin_sizeof(fcall);
+        return;
+    } else if (fcall->fn_name == "galloc") {
+        gen_builtin_galloc(fcall);
         return;
     }
 
@@ -178,12 +183,12 @@ void Visitor::gen_fcall(uptr<Node> &fcall) {
     gen_stack_push("%rax", fcall->_addr);
 }
 
-void Visitor::gen_syscall(uptr<Node> &fcall) {
+void Visitor::gen_builtin_syscall(uptr<Node> &fcall) {
     vec<string> reg_ord = {"%rax", "%rbx", "%rcx", "%rdx"};
     // TODO
 }
 
-void Visitor::gen_stalloc(uptr<Node> &fcall) {
+void Visitor::gen_builtin_stalloc(uptr<Node> &fcall) {
     // require 2 argument: a VAL integer (# elements), and a VAR type (element types).
     int cnt = fcall->fn_args[0]->val_int;
     DType type = str2dtype(fcall->fn_args[1]->var_name);
@@ -199,7 +204,7 @@ void Visitor::gen_stalloc(uptr<Node> &fcall) {
     gen_stack_push("%rax", fcall->_addr);
 }
 
-void Visitor::gen_sizeof(uptr<Node> &fcall) {
+void Visitor::gen_builtin_sizeof(uptr<Node> &fcall) {
     // require 1 argument: a type.
     // will be parsed as VAR
     DType type = str2dtype(fcall->fn_args[0]->var_name);
@@ -207,6 +212,21 @@ void Visitor::gen_sizeof(uptr<Node> &fcall) {
     // push ans
     int ans = dtype_size(type);
     gen_stack_push("$"+std::to_string(ans), fcall->_addr);
+}
+
+void Visitor::gen_builtin_galloc(uptr<Node> &fcall) {
+    // require 2 arguments: VAL int (# elements), VAR (element type).
+    int cnt = fcall->fn_args[0]->val_int;
+    DType type = str2dtype(fcall->fn_args[1]->var_name);
+    int bytes = cnt * dtype_size(type);
+
+    // alloc space
+    string label = "_galloc_array_"+std::to_string(m_galloc_id);
+    m_galloc_id++;
+    m_asm_data += label+": .zero "+std::to_string(bytes)+"\n";
+
+    // return addr
+    fcall->_addr = Addr(label);
 }
 
 void Visitor::gen_ret(uptr<Node> &ret) {
@@ -402,28 +422,42 @@ void Visitor::gen_str(uptr<Node> &node) {
 
 void Visitor::gen_global_var(uptr<Node> &def) {
     string name;
-    Node *val_node=nullptr;
+    uptr<Node> *val_node=nullptr;
     if (def->def_obj->type == NType::VAR) {
         name = def->def_obj->var_name;
     } else if (def->def_obj->type == NType::BINOP && def->def_obj->op_type == "=") {
         name = def->def_obj->op_l->var_name;
-        val_node = def->def_obj->op_r.get();
+        val_node = &def->def_obj->op_r;
     } else {
         throw std::runtime_error("[Visitor::gen_global_var] invalid global def");
     }
 
+    // gen val string repr to be assigned
     string val;
-    switch (def->dtype) {
-    case DType::INT: {
-        if (val_node) {
-            val = std::to_string(val_node->val_int);
+    if (val_node) {
+        uptr<Node> &node = *val_node;
+        // galloc?
+        if (node->type == NType::FN) {
+            gen_fcall(node);
+            // TODO make this less hacky
+            val = "_galloc_array_"+std::to_string(m_galloc_id-1);
         } else {
-            val = "0";
+            switch (node->dtype) {
+            case DType::INT: val = std::to_string(node->val_int); break;
+            case DType::VOID: assert(false); break;
+            }
         }
+    } else {
+        switch (def->dtype) {
+        case DType::INT: val = "0"; break;
+        case DType::VOID: assert(false); break;
+        }
+    }
 
-        m_asm_data += name+": .quad "+val+"\n";
-    } break;
-    case DType::VOID: throw std::runtime_error("[Visitor::gen_global_var] invalid var type VOID");
+    // gen .data asm
+    switch (def->dtype) {
+    case DType::INT: m_asm_data += name+": .quad "+val+"\n"; break;
+    case DType::VOID: assert(false); break;
     }
 
     m_scope.create_var(name, Addr(name), def->dtype);
