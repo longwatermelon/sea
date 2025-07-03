@@ -36,5 +36,5 @@ private:
     vec<Token> m_toks;
     ll m_ind;
 
-    ll m_label_id=0;
+    static ll m_label_id;
 };

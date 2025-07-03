@@ -11,27 +11,13 @@ vec<string> Args::next_arg() {
     if (ind>=sz(args)) return {};
 
     vec<string> res;
-    std::stringstream ss(args[ind]);
-    string buf;
-    ss>>buf;
-    res.push_back(buf);
-
-    if (args[ind][0]=='-') {
-        // --
-        if (sz(args[ind])>=2 && args[ind][1]=='-') {
-            ind++;
-            return res;
-        }
-
-        // -
-        ind++;
-        string arg;
-        ss>>arg;
-        res.push_back(arg);
-    } else {
-        // path
+    if (args[ind][0]=='-' && (sz(args[ind])<2 || args[ind][1]!='-')) {
+        res.push_back(args[ind]);
         ind++;
     }
+
+    res.push_back(args[ind]);
+    ind++;
 
     return res;
 }

@@ -1,6 +1,8 @@
 #include "parser.h"
 #include "errors.h"
 
+ll Parser::m_label_id=0;
+
 Parser::Parser(vec<Token> toks) : m_toks(toks) {
     m_ind=0;
 }
