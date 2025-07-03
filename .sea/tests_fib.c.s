@@ -1,3 +1,6 @@
+.section .data
+
+.section .text
 .global fib
 fib:
 	push %rbp

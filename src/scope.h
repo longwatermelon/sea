@@ -29,6 +29,7 @@ public:
     bool check_stkaddr(int addr);
     void del_stkaddr_top_n(int n);
     int top_stkaddr();
+    int layer_count() const {return sz(m_layers);};
 
 private:
     vec<ScopeLayer> m_layers;

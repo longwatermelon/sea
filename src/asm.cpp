@@ -10,28 +10,38 @@ string Visitor::gen(uptr<Node> &root) {
     //         "\tmovq $60, %rax\n"
     //         "\tsyscall\n\n";
 
+    m_asm = ".section .text\n";
+    m_asm_data = ".section .data\n";
     gen_expr(root);
-    return m_asm;
+    return m_asm_data + "\n" + m_asm;
 }
 
 void Visitor::gen_expr(uptr<Node> &expr) {
     switch (expr->type) {
     case NType::CPD: gen_cpd(expr); break;
     case NType::DEF: {
-        // TODO TODAY add globals support
         if (expr->def_obj->type == NType::FN) {
             gen_fdef(expr);
-        } else if (expr->def_obj->type == NType::VAR) {
-            Addr addr;
-            gen_stack_reserve(addr);
-            m_scope.create_var(expr->def_obj->var_name, addr, expr->dtype);
-        } else if (expr->def_obj->type == NType::BINOP && expr->def_obj->op_type == "=") {
-            Addr addr;
-            gen_stack_reserve(addr);
-            m_scope.create_var(expr->def_obj->op_l->var_name, addr, expr->dtype);
-            gen_expr(expr->def_obj);
         } else {
-            throw std::runtime_error("[Visitor::gen_expr] def_obj wasn't FN or VAR or BINOP assignment");
+            // global or stack based?
+            if (m_scope.layer_count()==1) {
+                // global
+                gen_global_var(expr);
+            } else {
+                // stack based
+                if (expr->def_obj->type == NType::VAR) {
+                    Addr addr;
+                    gen_stack_reserve(addr);
+                    m_scope.create_var(expr->def_obj->var_name, addr, expr->dtype);
+                } else if (expr->def_obj->type == NType::BINOP && expr->def_obj->op_type == "=") {
+                    Addr addr;
+                    gen_stack_reserve(addr);
+                    m_scope.create_var(expr->def_obj->op_l->var_name, addr, expr->dtype);
+                    gen_expr(expr->def_obj);
+                } else {
+                    throw std::runtime_error("[Visitor::gen_expr] def_obj wasn't FN or VAR or BINOP assignment");
+                }
+            }
         }
         // [cleanup] FN, VAR, BINOP EQ never allocate stack space
         break;
@@ -388,6 +398,35 @@ void Visitor::gen_while(uptr<Node> &node) {
 
 void Visitor::gen_str(uptr<Node> &node) {
     // TODO TODAY
+}
+
+void Visitor::gen_global_var(uptr<Node> &def) {
+    string name;
+    Node *val_node=nullptr;
+    if (def->def_obj->type == NType::VAR) {
+        name = def->def_obj->var_name;
+    } else if (def->def_obj->type == NType::BINOP && def->def_obj->op_type == "=") {
+        name = def->def_obj->op_l->var_name;
+        val_node = def->def_obj->op_r.get();
+    } else {
+        throw std::runtime_error("[Visitor::gen_global_var] invalid global def");
+    }
+
+    string val;
+    switch (def->dtype) {
+    case DType::INT: {
+        if (val_node) {
+            val = std::to_string(val_node->val_int);
+        } else {
+            val = "0";
+        }
+
+        m_asm_data += name+": .quad "+val+"\n";
+    } break;
+    case DType::VOID: throw std::runtime_error("[Visitor::gen_global_var] invalid var type VOID");
+    }
+
+    m_scope.create_var(name, Addr(name), def->dtype);
 }
 
 void Visitor::gen_stack_push(const string &val, Addr &addr) {

@@ -1,3 +1,6 @@
+.section .data
+
+.section .text
 .global helper_function
 helper_function:
 	push %rbp

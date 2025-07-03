@@ -1,3 +1,6 @@
+.section .data
+
+.section .text
 .global f
 f:
 	push %rbp

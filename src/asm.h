@@ -33,6 +33,7 @@ public:
     void gen_while(uptr<Node> &node);
 
     void gen_str(uptr<Node> &node);
+    void gen_global_var(uptr<Node> &def);
 
     // push val to stack, track its offset in addr. addr is RBP rel
     void gen_stack_push(const string &val, Addr &addr);
@@ -51,7 +52,7 @@ public:
     DType dtypeof(uptr<Node> &node);
 
 private:
-    string m_asm;
+    string m_asm, m_asm_data;
     int m_rsp=0; // stack ptr
 
     Scope m_scope;
