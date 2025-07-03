@@ -31,20 +31,22 @@ public:
     void gen_if(uptr<Node> &node);
     void gen_while(uptr<Node> &node);
 
-    // push val to stack, track its offset in addr
-    void gen_stack_push(const string &val, int &addr);
-    // reserve space for value
-    void gen_stack_reserve(int &addr);
+    void gen_str(uptr<Node> &node);
+
+    // push val to stack, track its offset in addr. addr is RBP rel
+    void gen_stack_push(const string &val, Addr &addr);
+    // reserve space for value, make addr RBP rel
+    void gen_stack_reserve(Addr &addr);
     // pop stack item into dst
     void gen_stack_pop(const string &dst);
-    // move -src(%rbp) to -dst(%rbp)
-    void gen_stack_mov(int src, int dst);
+    // move src to dst, both being references (rbp/rip)
+    void gen_dubref_mov(const string &src, const string &dst);
     // move btw/ directly specified locations
     void gen_stack_mov_raw(const string &src, const string &dst);
     // addq on rsp if necessary
     void restore_rsp_scope(int prev_rsp);
 
-    int addrof(uptr<Node> &node);
+    Addr addrof(uptr<Node> &node);
 
 private:
     string m_asm;

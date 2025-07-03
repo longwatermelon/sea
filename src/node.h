@@ -13,25 +13,42 @@ enum class NType {
     IF, // if statement
     UNOP, // unary operator
     WHILE, // while loop
+    STR, // string literal
 };
 
 enum class DType {
     INT,
-    STR,
     VOID,
 };
 
 inline bool is_dtype(const string &s) {
-    return s=="int" || s=="str" || s=="void";
+    return s=="int" || s=="void";
 }
 
 inline DType str2dtype(const string &s) {
     if (s=="int") return DType::INT;
-    else if (s=="str") return DType::STR;
     else if (s=="void") return DType::VOID;
     else throw std::runtime_error("str2dtype failed");
     // TODO better error
 }
+
+enum class AType {
+    RBP,
+    RIP,
+};
+
+struct Addr {
+    AType type=AType::RBP;
+    int rbp_addr=-1;
+    string rip_addr;
+
+    Addr()=default;
+    Addr(int rbp_offset) : type(AType::RBP), rbp_addr(rbp_offset) {}
+    Addr(const string &rip_name) : type(AType::RIP), rip_addr(rip_name) {}
+
+    string repr() const {return type==AType::RBP ? stkloc(rbp_addr) : rip_addr+"(%rip)";}
+    bool exists() const {return type==AType::RBP ? rbp_addr!=-1 : sz(rip_addr)>0;}
+};
 
 struct Node {
     Node()=default;
@@ -39,16 +56,13 @@ struct Node {
 
     NType type;
     DType dtype;
-    int _addr=-1;
+    Addr _addr;
 
     // cpd
     vec<uptr<Node>> cpd_nodes;
 
     // val: int
     int val_int;
-
-    // val: str
-    string val_str;
 
     // def
     uptr<Node> def_obj;
@@ -79,4 +93,8 @@ struct Node {
     // while
     uptr<Node> while_cond, while_body;
     int while_id;
+
+    // string
+    string str_val;
+    int str_id;
 };

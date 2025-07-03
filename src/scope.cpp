@@ -12,7 +12,7 @@ ScopeLayer Scope::pop_layer() {
     return res;
 }
 
-int Scope::find_var(const string &name) {
+Addr Scope::find_var(const string &name) {
     for (auto it = m_layers.rbegin(); it != m_layers.rend(); ++it) {
         auto found = it->vdefs.find(name);
         if (found != it->vdefs.end()) {
@@ -40,7 +40,7 @@ bool Scope::fn_exists(const string &name) {
     return m_fdefs.find(name) != end(m_fdefs);
 }
 
-void Scope::create_var(const string &name, int addr, DType dtype) {
+void Scope::create_var(const string &name, Addr addr, DType dtype) {
     m_layers.back().vdefs[name] = addr;
     m_layers.back().vdtypes[name] = dtype;
 }
@@ -49,26 +49,34 @@ void Scope::create_fn(const string &name, vec<DType> args) {
     m_fdefs[name] = args;
 }
 
-void Scope::claim_addr(int addr) {
-    m_layers.back().addrs.insert(addr);
+void Scope::claim_stkaddr(int addr) {
+    m_layers.back().stkaddrs.insert(addr);
 }
 
-void Scope::del_addr(int addr) {
-    auto it = m_layers.back().addrs.find(addr);
-    assert(it!=end(m_layers.back().addrs));
-    m_layers.back().addrs.erase(it);
+void Scope::del_stkaddr(int addr) {
+    auto it = m_layers.back().stkaddrs.find(addr);
+    assert(it!=end(m_layers.back().stkaddrs));
+    m_layers.back().stkaddrs.erase(it);
 }
 
-void Scope::del_addr_top_n(int n) {
+void Scope::del_stkaddr_top_n(int n) {
     for (int i=1; i<=n; ++i) {
-        m_layers.back().addrs.erase(begin(m_layers.back().addrs));
+        m_layers.back().stkaddrs.erase(begin(m_layers.back().stkaddrs));
     }
 }
 
-bool Scope::check_addr(int addr) {
+bool Scope::check_stkaddr(int addr) {
     bool ans=false;
     for (auto &l : m_layers) {
-        ans|=l.addrs.find(addr) != end(l.addrs);
+        ans|=l.stkaddrs.find(addr) != end(l.stkaddrs);
+    }
+    return ans;
+}
+
+int Scope::top_stkaddr() {
+    int ans=0;
+    for (auto &l : m_layers) {
+        ans = std::min(ans,*begin(l.stkaddrs));
     }
     return ans;
 }

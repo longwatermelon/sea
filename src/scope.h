@@ -3,9 +3,9 @@
 #include "node.h"
 
 struct ScopeLayer {
-    map<string,int> vdefs;
+    map<string,Addr> vdefs;
     map<string,DType> vdtypes;
-    set<int> addrs;
+    set<int> stkaddrs;
 };
 
 class Scope {
@@ -17,15 +17,16 @@ public:
 
     bool var_exists(const string &name);
     bool fn_exists(const string &name);
-    int find_var(const string &name);
+    Addr find_var(const string &name);
     const vec<DType> &find_fn(const string &name);
-    void create_var(const string &name, int addr, DType dtype);
+    void create_var(const string &name, Addr addr, DType dtype);
     void create_fn(const string &name, vec<DType> args);
 
-    void claim_addr(int addr);
-    void del_addr(int addr);
-    bool check_addr(int addr);
-    void del_addr_top_n(int n);
+    void claim_stkaddr(int addr);
+    void del_stkaddr(int addr);
+    bool check_stkaddr(int addr);
+    void del_stkaddr_top_n(int n);
+    int top_stkaddr();
 
 private:
     vec<ScopeLayer> m_layers;

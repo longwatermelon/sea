@@ -94,8 +94,10 @@ uptr<Node> Parser::parse_int() {
 }
 
 uptr<Node> Parser::parse_str() {
-    uptr<Node> val = mkuq<Node>(NType::VAL, DType::STR);
-    val->val_str = curtok().val;
+    uptr<Node> val = mkuq<Node>(NType::STR);
+    val->str_val = curtok().val;
+    val->str_id = m_label_id;
+    m_label_id++;
     advance(TType::STR);
     return val;
 }

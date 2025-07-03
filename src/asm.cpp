@@ -18,14 +18,15 @@ void Visitor::gen_expr(uptr<Node> &expr) {
     switch (expr->type) {
     case NType::CPD: gen_cpd(expr); break;
     case NType::DEF: {
+        // TODO TODAY add globals support
         if (expr->def_obj->type == NType::FN) {
             gen_fdef(expr);
         } else if (expr->def_obj->type == NType::VAR) {
-            int addr;
+            Addr addr;
             gen_stack_reserve(addr);
             m_scope.create_var(expr->def_obj->var_name, addr, expr->dtype);
         } else if (expr->def_obj->type == NType::BINOP && expr->def_obj->op_type == "=") {
-            int addr;
+            Addr addr;
             gen_stack_reserve(addr);
             m_scope.create_var(expr->def_obj->op_l->var_name, addr, expr->dtype);
             gen_expr(expr->def_obj);
@@ -43,25 +44,31 @@ void Visitor::gen_expr(uptr<Node> &expr) {
     case NType::FN: gen_fcall(expr); break;
     case NType::IF: gen_if(expr); break;
     case NType::WHILE: gen_while(expr); break;
+    case NType::STR: gen_str(expr); break;
     }
 }
 
 void Visitor::cleanup_dangling(uptr<Node> &node) {
-    if (node && node->_addr != -1) {
-        m_scope.del_addr(node->_addr);
+    if (node && node->_addr.type == AType::RBP && node->_addr.exists()) {
+        m_scope.del_stkaddr(node->_addr.rbp_addr);
         node->_addr = -1;
     }
 }
 
 void Visitor::tighten_stack() {
-    int dif=0;
-    while (m_rsp+dif<0 && !m_scope.check_addr(m_rsp+dif)) {
-        dif+=8;
-    }
+    int rsp_new = m_scope.top_stkaddr();
+    int dif = rsp_new-m_rsp;
     if (dif==0) return;
 
     m_rsp+=dif;
     m_asm += "\t# tighten_stack\n\taddq $"+std::to_string(dif)+", %rsp\n";
+    // int dif=0;
+    // while (m_rsp+dif<0 && !m_scope.check_addr(m_rsp+dif)) {
+    //     dif+=8;
+    // }
+    // if (dif==0) return;
+
+    // m_rsp+=dif;
 }
 
 void Visitor::gen_cpd(uptr<Node> &cpd) {
@@ -137,9 +144,10 @@ void Visitor::gen_fcall(uptr<Node> &fcall) {
     // push args from their cur locations to the front
     for (int i=sz(fcall->fn_args)-1; i>=0; --i) {
         auto &arg = fcall->fn_args[i];
-        int addr = addrof(arg);
-        gen_stack_mov_raw(stkloc(addr), "%rax");
-        int tmp;
+        Addr addr = addrof(arg);
+        gen_stack_mov_raw(addr.repr(), "%rax");
+
+        Addr tmp;
         gen_stack_push("%rax", tmp);
     }
 
@@ -148,7 +156,7 @@ void Visitor::gen_fcall(uptr<Node> &fcall) {
 
     // [cleanup] args, which are dangling now. do it before pushing fcall result to stack
     // IMPORTANT: none of these ops should touch rax.
-    m_scope.del_addr_top_n(sz(fcall->fn_args));
+    m_scope.del_stkaddr_top_n(sz(fcall->fn_args));
     for (auto &arg : fcall->fn_args) cleanup_dangling(arg);
     tighten_stack();
     // [/cleanup]
@@ -169,7 +177,7 @@ void Visitor::gen_stalloc(uptr<Node> &fcall) {
     // alloc space
     m_asm += "\tsubq $"+std::to_string(cnt*8)+", %rsp\n";
     m_rsp -= cnt*8;
-    m_scope.claim_addr(m_rsp);
+    m_scope.claim_stkaddr(m_rsp);
 
     // return ptr to this space
     gen_stack_mov_raw("%rsp", "%rax");
@@ -178,7 +186,8 @@ void Visitor::gen_stalloc(uptr<Node> &fcall) {
 
 void Visitor::gen_ret(uptr<Node> &ret) {
     gen_expr(ret->ret_val);
-    gen_stack_mov_raw(stkloc(addrof(ret->ret_val)), "%rax");
+    // gen_stack_mov_raw(stkloc(addrof(ret->ret_val)), "%rax");
+    gen_stack_mov_raw(addrof(ret->ret_val).repr(), "%rax");
     m_asm += "\tmovq %rbp, %rsp\n"
              "\tpop %rbp\n"
              "\tret\n";
@@ -187,7 +196,6 @@ void Visitor::gen_ret(uptr<Node> &ret) {
 void Visitor::gen_val(uptr<Node> &val) {
     switch (val->dtype) {
     case DType::INT: gen_stack_push("$"+std::to_string(val->val_int), val->_addr); break;
-    case DType::STR: throw std::runtime_error("[Visitor::gen_val] unimplemented"); break; // TODO
     case DType::VOID: throw std::runtime_error("[Visitor::gen_val] unreachable void"); break;
     }
 }
@@ -223,8 +231,8 @@ void Visitor::gen_binop(uptr<Node> &op) {
         gen_stack_reserve(op->_addr);
         gen_expr(op->op_l);
         gen_expr(op->op_r);
-        gen_stack_mov_raw(stkloc(addrof(op->op_l)), "%rax");
-        gen_stack_mov_raw(stkloc(addrof(op->op_r)), "%rbx");
+        gen_stack_mov_raw(addrof(op->op_l).repr(), "%rax");
+        gen_stack_mov_raw(addrof(op->op_r).repr(), "%rbx");
         // [cleanup] op_l and op_r are impossible to reference from here on out
         cleanup_dangling(op->op_l);
         cleanup_dangling(op->op_r);
@@ -234,7 +242,7 @@ void Visitor::gen_binop(uptr<Node> &op) {
 
         string tg = "%rax";
         if (op->op_type == "%") tg = "%rdx";
-        gen_stack_mov_raw(tg, stkloc(op->_addr));
+        gen_stack_mov_raw(tg, op->_addr.repr());
     } else {
         if (op->op_type == "=") {
             gen_assign(op);
@@ -249,7 +257,7 @@ void Visitor::gen_assign(uptr<Node> &op) {
     if (op->op_l->type == NType::VAR) {
         // move result to var in op_l
         assert(m_scope.var_exists(op->op_l->var_name));
-        gen_stack_mov(addrof(op->op_r), m_scope.find_var(op->op_l->var_name));
+        gen_dubref_mov(addrof(op->op_r).repr(), m_scope.find_var(op->op_l->var_name).repr());
 
         // [cleanup] op_r is useless now that op_l is the handle to op_r's value. op_l is VAR and doesn't need to be cleaned.
         cleanup_dangling(op->op_r);
@@ -257,8 +265,8 @@ void Visitor::gen_assign(uptr<Node> &op) {
     } else if (op->op_l->type == NType::UNOP && op->op_l->unop_type == "*") {
         // eval dereferenced object, get loc of it
         gen_expr(op->op_l->unop_obj);
-        gen_stack_mov_raw(stkloc(addrof(op->op_l->unop_obj)), "%rbx");
-        gen_stack_mov_raw(stkloc(addrof(op->op_r)), "%rax");
+        gen_stack_mov_raw(addrof(op->op_l->unop_obj).repr(), "%rbx");
+        gen_stack_mov_raw(addrof(op->op_r).repr(), "%rax");
         gen_stack_mov_raw("%rax", "(%rbx)");
 
         // [cleanup] TODO
@@ -275,7 +283,7 @@ void Visitor::gen_unop(uptr<Node> &op) {
 
 void Visitor::gen_getptr(uptr<Node> &op) {
     if (op->unop_obj->type == NType::VAR) {
-        m_asm += "\tleaq "+stkloc(addrof(op->unop_obj))+", %rax\n";
+        m_asm += "\tleaq "+addrof(op->unop_obj).repr()+", %rax\n";
         // [cleanup]
         cleanup_dangling(op->unop_obj);
         tighten_stack();
@@ -284,7 +292,7 @@ void Visitor::gen_getptr(uptr<Node> &op) {
     } else if (op->unop_obj->type == NType::UNOP && op->unop_obj->unop_type == "*") {
         // LVALUE DEREF
         gen_expr(op->unop_obj->unop_obj);
-        gen_stack_mov_raw(stkloc(addrof(op->unop_obj->unop_obj)), "%rax");
+        gen_stack_mov_raw(addrof(op->unop_obj->unop_obj).repr(), "%rax");
     }
 
     gen_stack_push("%rax", op->_addr);
@@ -292,7 +300,7 @@ void Visitor::gen_getptr(uptr<Node> &op) {
 
 void Visitor::gen_deref(uptr<Node> &op) {
     gen_expr(op->unop_obj);
-    gen_stack_mov_raw(stkloc(addrof(op->unop_obj)), "%rax");
+    gen_stack_mov_raw(addrof(op->unop_obj).repr(), "%rax");
     // [cleanup]
     cleanup_dangling(op->unop_obj);
     tighten_stack();
@@ -306,7 +314,7 @@ void Visitor::gen_if(uptr<Node> &node) {
 
     // conditional
     gen_expr(node->if_cond);
-    gen_stack_mov_raw(stkloc(addrof(node->if_cond)), "%rax");
+    gen_stack_mov_raw(addrof(node->if_cond).repr(), "%rax");
     // [cleanup] if_cond is dangling now
     cleanup_dangling(node->if_cond);
     tighten_stack();
@@ -343,7 +351,7 @@ void Visitor::gen_while(uptr<Node> &node) {
 
     // cond
     gen_expr(node->while_cond);
-    gen_stack_mov_raw(stkloc(addrof(node->while_cond)), "%rax");
+    gen_stack_mov_raw(addrof(node->while_cond).repr(), "%rax");
     // [cleanup] while_cond is dangling now
     cleanup_dangling(node->while_cond);
     tighten_stack();
@@ -363,29 +371,33 @@ void Visitor::gen_while(uptr<Node> &node) {
     m_asm += end_label+":\n";
 }
 
-void Visitor::gen_stack_push(const string &val, int &addr) {
-    m_rsp-=8;
-    m_scope.claim_addr(m_rsp);
-    m_asm += "\tpushq "+val+"\n";
-    addr = m_rsp;
+void Visitor::gen_str(uptr<Node> &node) {
+    // TODO TODAY
 }
 
-void Visitor::gen_stack_reserve(int &addr) {
+void Visitor::gen_stack_push(const string &val, Addr &addr) {
+    m_rsp-=8;
+    m_scope.claim_stkaddr(m_rsp);
+    m_asm += "\tpushq "+val+"\n";
+    addr = Addr(m_rsp);
+}
+
+void Visitor::gen_stack_reserve(Addr &addr) {
     m_asm += "\tsubq $8, %rsp\n";
     m_rsp-=8;
-    m_scope.claim_addr(m_rsp);
-    addr = m_rsp;
+    m_scope.claim_stkaddr(m_rsp);
+    addr = Addr(m_rsp);
 }
 
 void Visitor::gen_stack_pop(const string &dst) {
-    m_scope.del_addr(m_rsp);
+    m_scope.del_stkaddr(m_rsp);
     m_rsp+=8;
     m_asm += "\tpopq "+dst+"\n";
 }
 
-void Visitor::gen_stack_mov(int src, int dst) {
-    gen_stack_mov_raw(stkloc(src), "%rax");
-    gen_stack_mov_raw("%rax", stkloc(dst));
+void Visitor::gen_dubref_mov(const string &src, const string &dst) {
+    gen_stack_mov_raw(src, "%rax");
+    gen_stack_mov_raw("%rax", dst);
 }
 
 void Visitor::gen_stack_mov_raw(const string &src, const string &dst) {
@@ -399,13 +411,14 @@ void Visitor::restore_rsp_scope(int prev_rsp) {
     }
 }
 
-int Visitor::addrof(uptr<Node> &node) {
+Addr Visitor::addrof(uptr<Node> &node) {
     switch (node->type) {
     case NType::FN: return node->_addr;
     case NType::VAL: return node->_addr;
     case NType::VAR: return m_scope.find_var(node->var_name);
     case NType::BINOP: return node->_addr;
     case NType::UNOP: return node->_addr;
+    case NType::STR: return node->_addr;
     case NType::CPD:
     case NType::DEF:
     case NType::RET:
