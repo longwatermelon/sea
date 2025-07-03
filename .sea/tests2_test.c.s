@@ -28,18 +28,24 @@ f:
 	addq $8, %rsp
 	jmp .L_end_1
 .L_else_1:
+	# tighten_stack
+	addq $-8, %rsp
+	# restore_rsp_scope
+	addq $8, %rsp
 .L_end_1:
+	# tighten_stack
+	addq $-8, %rsp
 	subq $8, %rsp
 	movq 16(%rbp), %rax
 	movq 24(%rbp), %rbx
 	imulq %rbx, %rax
-	movq %rax, -8(%rbp)
-	movq -8(%rbp), %rax
+	movq %rax, -16(%rbp)
+	movq -16(%rbp), %rax
 	movq %rbp, %rsp
 	pop %rbp
 	ret
 	# restore_rsp_scope
-	addq $8, %rsp
+	addq $16, %rsp
 
 	movq %rbp, %rsp
 	pop %rbp

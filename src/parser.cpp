@@ -105,12 +105,20 @@ uptr<Node> Parser::parse_str() {
 uptr<Node> Parser::parse_id() {
     if (is_dtype(curtok().val)) {
         // data type -- prob declaration of something
-        DType dtype = str2dtype(curtok().val);
+        string dtype_name = curtok().val;
+        DType dtype = str2dtype(dtype_name);
         advance(TType::ID);
 
         uptr<Node> nxt = parse_expr();
 
-        // check what's next?
+        // just datatype on its own?
+        if (!nxt) {
+            uptr<Node> res = mkuq<Node>(NType::VAR);
+            res->var_name = dtype_name;
+            return res;
+        }
+
+        // check what's next
         uptr<Node> res = mkuq<Node>(NType::DEF, dtype);
         if (nxt->type == NType::FN) {
             res->def_obj = std::move(nxt);

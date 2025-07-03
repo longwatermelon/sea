@@ -23,7 +23,18 @@ Addr Scope::find_var(const string &name) {
     throw std::runtime_error("[Scope::find_var] '"+name+"' not found\n");
 }
 
-const vec<DType> &Scope::find_fn(const string &name) {
+DType Scope::find_var_dtype(const string &name) {
+    for (auto it = m_layers.rbegin(); it != m_layers.rend(); ++it) {
+        auto found = it->vdtypes.find(name);
+        if (found != it->vdtypes.end()) {
+            return found->second;
+        }
+    }
+
+    throw std::runtime_error("[Scope::find_var] '"+name+"' not found\n");
+}
+
+const pair<DType,vec<DType>> &Scope::find_fn(const string &name) {
     return m_fdefs[name];
 }
 
@@ -45,8 +56,8 @@ void Scope::create_var(const string &name, Addr addr, DType dtype) {
     m_layers.back().vdtypes[name] = dtype;
 }
 
-void Scope::create_fn(const string &name, vec<DType> args) {
-    m_fdefs[name] = args;
+void Scope::create_fn(const string &name, DType ret, vec<DType> args) {
+    m_fdefs[name] = {ret,args};
 }
 
 void Scope::claim_stkaddr(int addr) {

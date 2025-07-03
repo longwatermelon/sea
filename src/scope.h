@@ -1,6 +1,7 @@
 #pragma once
 #include "util.h"
 #include "node.h"
+using std::pair;
 
 struct ScopeLayer {
     map<string,Addr> vdefs;
@@ -18,9 +19,10 @@ public:
     bool var_exists(const string &name);
     bool fn_exists(const string &name);
     Addr find_var(const string &name);
-    const vec<DType> &find_fn(const string &name);
+    DType find_var_dtype(const string &name);
+    const pair<DType,vec<DType>> &find_fn(const string &name);
     void create_var(const string &name, Addr addr, DType dtype);
-    void create_fn(const string &name, vec<DType> args);
+    void create_fn(const string &name, DType ret, vec<DType> args);
 
     void claim_stkaddr(int addr);
     void del_stkaddr(int addr);
@@ -30,5 +32,5 @@ public:
 
 private:
     vec<ScopeLayer> m_layers;
-    map<string, vec<DType>> m_fdefs;
+    map<string, pair<DType,vec<DType>>> m_fdefs;
 };

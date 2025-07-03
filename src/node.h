@@ -32,6 +32,13 @@ inline DType str2dtype(const string &s) {
     // TODO better error
 }
 
+inline int dtype_size(DType type) {
+    switch (type) {
+    case DType::INT: return 8;
+    case DType::VOID: return 0;
+    }
+}
+
 enum class AType {
     RBP,
     RIP,

@@ -18,6 +18,7 @@ public:
     void gen_fcall(uptr<Node> &fcall);
     void gen_syscall(uptr<Node> &fcall);
     void gen_stalloc(uptr<Node> &fcall);
+    void gen_sizeof(uptr<Node> &fcall);
     void gen_ret(uptr<Node> &ret);
     void gen_val(uptr<Node> &val);
 
@@ -47,6 +48,7 @@ public:
     void restore_rsp_scope(int prev_rsp);
 
     Addr addrof(uptr<Node> &node);
+    DType dtypeof(uptr<Node> &node);
 
 private:
     string m_asm;

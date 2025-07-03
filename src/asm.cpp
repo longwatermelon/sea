@@ -91,7 +91,7 @@ void Visitor::gen_fdef(uptr<Node> &fdef) {
     for (auto &arg : fdef->def_obj->fn_args) {
         scope_args.push_back(arg->dtype);
     }
-    m_scope.create_fn(fdef->def_obj->fn_name, scope_args);
+    m_scope.create_fn(fdef->def_obj->fn_name, fdef->dtype, scope_args);
 
     // declaration?
     if (!fdef->def_obj->fn_body) {
@@ -107,7 +107,8 @@ void Visitor::gen_fdef(uptr<Node> &fdef) {
     int addr=16;
     for (auto &param : fdef->def_obj->fn_args) {
         m_scope.create_var(param->def_obj->var_name, addr, param->dtype);
-        addr+=8;
+        // addr+=8;
+        addr += dtype_size(dtypeof(param));
     }
 
     // fdef
@@ -133,6 +134,9 @@ void Visitor::gen_fcall(uptr<Node> &fcall) {
         return;
     } else if (fcall->fn_name == "stalloc") {
         gen_stalloc(fcall);
+        return;
+    } else if (fcall->fn_name == "sizeof") {
+        gen_sizeof(fcall);
         return;
     }
 
@@ -170,18 +174,29 @@ void Visitor::gen_syscall(uptr<Node> &fcall) {
 }
 
 void Visitor::gen_stalloc(uptr<Node> &fcall) {
-    // require 1 argument: a VAL integer.
-    // pass in # integers to alloc
+    // require 2 argument: a VAL integer (# elements), and a VAR type (element types).
     int cnt = fcall->fn_args[0]->val_int;
+    DType type = str2dtype(fcall->fn_args[1]->var_name);
+    int bytes = cnt * dtype_size(type);
 
     // alloc space
-    m_asm += "\tsubq $"+std::to_string(cnt*8)+", %rsp\n";
-    m_rsp -= cnt*8;
+    m_asm += "\tsubq $"+std::to_string(bytes)+", %rsp\n";
+    m_rsp -= bytes;
     m_scope.claim_stkaddr(m_rsp);
 
     // return ptr to this space
     gen_stack_mov_raw("%rsp", "%rax");
     gen_stack_push("%rax", fcall->_addr);
+}
+
+void Visitor::gen_sizeof(uptr<Node> &fcall) {
+    // require 1 argument: a type.
+    // will be parsed as VAR
+    DType type = str2dtype(fcall->fn_args[0]->var_name);
+
+    // push ans
+    int ans = dtype_size(type);
+    gen_stack_push("$"+std::to_string(ans), fcall->_addr);
 }
 
 void Visitor::gen_ret(uptr<Node> &ret) {
@@ -428,4 +443,23 @@ Addr Visitor::addrof(uptr<Node> &node) {
     }
 
     return -2;
+}
+
+DType Visitor::dtypeof(uptr<Node> &node) {
+    switch (node->type) {
+    case NType::BINOP: return dtypeof(node->op_l);
+    case NType::DEF: return node->dtype;
+    case NType::FN: return m_scope.find_fn(node->fn_name).first;
+    case NType::UNOP: return dtypeof(node->unop_obj);
+    case NType::VAL: return node->dtype;
+    case NType::VAR: return m_scope.find_var_dtype(node->var_name);
+    case NType::WHILE:
+    case NType::STR:
+    case NType::RET:
+    case NType::IF:
+    case NType::CPD:
+        break;
+    }
+
+    throw std::runtime_error("[Visitor::dtypeof] node doesn't have a dtype, but dtype of node was requested");
 }
