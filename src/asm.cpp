@@ -184,8 +184,25 @@ void Visitor::gen_fcall(uptr<Node> &fcall) {
 }
 
 void Visitor::gen_builtin_syscall(uptr<Node> &fcall) {
-    vec<string> reg_ord = {"%rax", "%rbx", "%rcx", "%rdx"};
-    // TODO
+    // push
+    vec<string> reg_ord = {"%rax", "%rdi", "%rsi", "%rdx"};
+    for (int i=0; i<sz(fcall->fn_args); ++i) {
+        gen_expr(fcall->fn_args[i]);
+    }
+
+    for (int i=0; i<sz(fcall->fn_args); ++i) {
+        Addr addr = addrof(fcall->fn_args[i]);
+        gen_stack_mov_raw(addr.repr(), reg_ord[i]);
+    }
+
+    // call
+    m_asm += "\tsyscall\n";
+
+    // cleanup
+    for (auto &x : fcall->fn_args) {
+        cleanup_dangling(x);
+    }
+    tighten_stack();
 }
 
 void Visitor::gen_builtin_stalloc(uptr<Node> &fcall) {

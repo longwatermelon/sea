@@ -1,44 +1,92 @@
+.section .data
+buffer: .quad 0
+
+.section .text
+.global read_char
+read_char:
+	push %rbp
+	movq %rsp, %rbp
+
+	pushq $0
+	pushq $0
+	leaq buffer(%rip), %rax
+	pushq %rax
+	pushq %rax
+	pushq $1
+	movq -8(%rbp), %rax
+	movq -16(%rbp), %rdi
+	movq -32(%rbp), %rsi
+	movq -40(%rbp), %rdx
+	syscall
+	# tighten_stack
+	addq $16, %rsp
+	movq buffer(%rip), %rax
+	movq %rbp, %rsp
+	pop %rbp
+	ret
+	# restore_rsp_scope
+	addq $24, %rsp
+
+	movq %rbp, %rsp
+	pop %rbp
+	ret
+
+.global print_char
+print_char:
+	push %rbp
+	movq %rsp, %rbp
+
+	movq 16(%rbp), %rax
+	movq %rax, buffer(%rip)
+	pushq $1
+	pushq $1
+	leaq buffer(%rip), %rax
+	pushq %rax
+	pushq %rax
+	pushq $1
+	movq -8(%rbp), %rax
+	movq -16(%rbp), %rdi
+	movq -32(%rbp), %rsi
+	movq -40(%rbp), %rdx
+	syscall
+	# tighten_stack
+	addq $16, %rsp
+	# restore_rsp_scope
+	addq $24, %rsp
+
+	movq %rbp, %rsp
+	pop %rbp
+	ret
+
 .global main
 main:
 	push %rbp
 	movq %rsp, %rbp
 
 	subq $8, %rsp
-	pushq $1
-	pushq $2
+	call read_char
+	pushq %rax
 	movq -16(%rbp), %rax
-	movq -24(%rbp), %rbx
+	movq %rax, -8(%rbp)
+	# tighten_stack
+	addq $8, %rsp
+	movq -8(%rbp), %rax
+	pushq %rax
+	call print_char
+	# tighten_stack
+	addq $8, %rsp
+	pushq %rax
+	# tighten_stack
+	addq $8, %rsp
+	pushq $10
+	movq -16(%rbp), %rax
+	pushq %rax
+	call print_char
 	# tighten_stack
 	addq $16, %rsp
-	cmp %rbx, %rax
-	sete %al
-	movzbl %al, %eax
-	movq %rax, -8(%rbp)
-	movq -8(%rbp), %rax
+	pushq %rax
 	# tighten_stack
 	addq $8, %rsp
-	test %rax, %rax
-	jz .L_else_0
-	pushq $5
-	movq -8(%rbp), %rax
-	movq %rbp, %rsp
-	pop %rbp
-	ret
-	# restore_rsp_scope
-	addq $8, %rsp
-	jmp .L_end_0
-.L_else_0:
-.L_end_0:
-	pushq $2
-	pushq $3
-	movq -16(%rbp), %rax
-	pushq %rax
-	movq -8(%rbp), %rax
-	pushq %rax
-	call f
-	# tighten_stack
-	addq $32, %rsp
-	pushq %rax
 	movq -8(%rbp), %rax
 	movq %rbp, %rsp
 	pop %rbp

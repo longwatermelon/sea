@@ -1,3 +1,6 @@
+.section .data
+
+.section .text
 .global f
 f:
 	push %rbp
@@ -18,7 +21,7 @@ f:
 	# tighten_stack
 	addq $8, %rsp
 	test %rax, %rax
-	jz .L_else_1
+	jz .L_else_0
 	pushq $90
 	movq -8(%rbp), %rax
 	movq %rbp, %rsp
@@ -26,13 +29,13 @@ f:
 	ret
 	# restore_rsp_scope
 	addq $8, %rsp
-	jmp .L_end_1
-.L_else_1:
+	jmp .L_end_0
+.L_else_0:
 	# tighten_stack
 	addq $-8, %rsp
 	# restore_rsp_scope
 	addq $8, %rsp
-.L_end_1:
+.L_end_0:
 	# tighten_stack
 	addq $-8, %rsp
 	subq $8, %rsp
