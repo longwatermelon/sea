@@ -1,5 +1,4 @@
 #include "args.h"
-#include <sstream>
 
 Args::Args(int argc, char **argv) {
     for (int i=1; i<argc; ++i) {

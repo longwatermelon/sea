@@ -16,6 +16,8 @@ public:
     void gen_cpd(uptr<Node> &cpd);
     void gen_fdef(uptr<Node> &fdef);
     void gen_fcall(uptr<Node> &fcall);
+    void gen_syscall(uptr<Node> &fcall);
+    void gen_stalloc(uptr<Node> &fcall);
     void gen_ret(uptr<Node> &ret);
     void gen_val(uptr<Node> &val);
 

@@ -121,6 +121,14 @@ void Visitor::gen_fdef(uptr<Node> &fdef) {
 }
 
 void Visitor::gen_fcall(uptr<Node> &fcall) {
+    if (fcall->fn_name == "syscall") {
+        gen_syscall(fcall);
+        return;
+    } else if (fcall->fn_name == "stalloc") {
+        gen_stalloc(fcall);
+        return;
+    }
+
     // TODO type-check against actual args from m_scope
     // eval args, create addresses
     for (auto &arg : fcall->fn_args) {
@@ -145,6 +153,26 @@ void Visitor::gen_fcall(uptr<Node> &fcall) {
     tighten_stack();
     // [/cleanup]
 
+    gen_stack_push("%rax", fcall->_addr);
+}
+
+void Visitor::gen_syscall(uptr<Node> &fcall) {
+    vec<string> reg_ord = {"%rax", "%rbx", "%rcx", "%rdx"};
+    // TODO
+}
+
+void Visitor::gen_stalloc(uptr<Node> &fcall) {
+    // require 1 argument: a VAL integer.
+    // pass in # integers to alloc
+    int cnt = fcall->fn_args[0]->val_int;
+
+    // alloc space
+    m_asm += "\tsubq $"+std::to_string(cnt*8)+", %rsp\n";
+    m_rsp -= cnt*8;
+    m_scope.claim_addr(m_rsp);
+
+    // return ptr to this space
+    gen_stack_mov_raw("%rsp", "%rax");
     gen_stack_push("%rax", fcall->_addr);
 }
 
