@@ -2,8 +2,10 @@
 #include "asm.h"
 #include "lexer.h"
 #include "parser.h"
+#include "preprocessor.h"
 #include <sstream>
 #include <fstream>
+#include <filesystem>
 
 void sea::compile(const string &path, const string &out) {
     std::ifstream ifs(path);
@@ -11,6 +13,9 @@ void sea::compile(const string &path, const string &out) {
     buf << ifs.rdbuf();
     ifs.close();
     string prog = buf.str();
+
+    string base_dir = std::filesystem::path(path).parent_path();
+    prog = preprocess(prog, base_dir);
 
     Lexer lex(prog);
     vec<Token> toks = lex.tokenize();
