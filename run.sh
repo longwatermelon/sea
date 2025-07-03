@@ -38,8 +38,8 @@ for c_file in tests/*.c; do
     compilation_output=$(./a.out "$c_file" 2>&1)
     compilation_succeeded=$?
     
-    # The Sea compiler creates an executable with the same base name as input
-    expected_exe="tests/${base_name}"
+    # The Sea compiler creates an executable named sea.out
+    expected_exe="sea.out"
     
     if [[ $compilation_succeeded -eq 0 && -f "$expected_exe" ]]; then
         # Compilation succeeded - run the executable

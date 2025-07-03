@@ -7,17 +7,25 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    string input_file(argv[1]);
-    string out = input_file;
+    vec<string> objs;
+    for (int i=1; i<argc; ++i) {
+        string path(argv[1]);
 
-    if (out.size() >= 2 && out.substr(out.size()-2) == ".c") {
-        out = out.substr(0, out.size()-2);
+        string out = path;
+        if (sz(out)>=2 && out.substr(sz(out)-2) == ".c") {
+            out = out.substr(0, sz(out)-2);
+        }
+
+        sea::compile(path, out+".s");
+
+        system(("as -64 "+out+".s -o "+out+".o").c_str());
+        objs.push_back(out+".o");
     }
 
-    sea::compile(input_file, out+".s");
-
-    system(("as -64 "+out+".s -o "+out+".o").c_str());
-    system(("ld "+out+".o -o "+out).c_str());
+    string link_cmd = "ld ";
+    for (auto &obj : objs) link_cmd += obj+' ';
+    link_cmd += "-o sea.out";
+    system(link_cmd.c_str());
 
     return 0;
 }
