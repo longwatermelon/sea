@@ -1,7 +1,7 @@
 #include "sea.h"
 #include "args.h"
-#include <iostream>
 #include <fstream>
+#include <algorithm>
 
 int main(int argc, char* argv[]) {
     Args args(argc, argv);
@@ -37,9 +37,15 @@ int main(int argc, char* argv[]) {
 
     // compiling
     system(("mkdir -p "+build_dir).c_str());
+    vec<string> outfiles;
     for (auto &in : infiles) {
-        sea::compile(in,in+".s");
-        system(("as -64 "+in+".s -o "+in+".o").c_str());
+        string out = in;
+        std::replace(begin(out),end(out),'/','_');
+        out = build_dir+"/"+out;
+        outfiles.push_back(out);
+
+        sea::compile(in,out+".s");
+        system(("as -64 "+out+".s -o "+out+".o").c_str());
     }
 
     string entry_asm = ".section .text\n"
@@ -53,12 +59,13 @@ int main(int argc, char* argv[]) {
     ofs << entry_asm;
     ofs.close();
     system(("as -64 "+build_dir+"/_sea_entry.c.s -o "+build_dir+"/_sea_entry.c.o").c_str());
-    infiles.push_back(build_dir+"/_sea_entry.c");
+    outfiles.push_back(build_dir+"/_sea_entry.c");
 
     string link_cmd = "ld ";
-    for (auto &in : infiles) link_cmd += in+".o ";
+    for (auto &out : outfiles) link_cmd += out+".o ";
     link_cmd += "-o "+outfile;
     system(link_cmd.c_str());
+    printf("%s\n", link_cmd.c_str());
 
     return 0;
 }
