@@ -1,27 +1,45 @@
 #include "sea.h"
+#include "args.h"
 #include <iostream>
 #include <fstream>
 
 int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <input.c>" << std::endl;
-        return 1;
-    }
+    Args args(argc, argv);
 
-    vec<string> objs;
-    for (int i=1; i<argc; ++i) {
-        string path(argv[i]);
+    // parameters
+    vec<string> infiles;
+    string outfile="sea.out";
+    bool bundle=false;
+    string build_dir=".sea";
 
-        string out = path;
-        if (sz(out)>=2 && out.substr(sz(out)-2) == ".c") {
-            out = out.substr(0, sz(out)-2);
+    // argparsing
+    vec<string> nxt = args.next_arg();
+    while (!empty(nxt)) {
+        if (sz(nxt)==1 && nxt[0][0]!='-') {
+            // path
+            infiles.push_back(nxt[0]);
+        } else if (sz(nxt)==1 && nxt[0][0]=='-') {
+            // flag w arg
+            if (nxt[0]=="-o") {
+                outfile = nxt[1];
+            } else if (nxt[0]=="-b") {
+                build_dir = nxt[1];
+            }
+        } else { // sz(nxt)==2
+            // flag wout arg
+            if (nxt[0]=="--bundle") {
+                bundle=true;
+            }
         }
 
-        printf("%s\n", (out+".s").c_str());
-        sea::compile(path, out+".s");
+        nxt = args.next_arg();
+    }
 
-        system(("as -64 "+out+".s -o "+out+".o").c_str());
-        objs.push_back(out+".o");
+    // compiling
+    system(("mkdir -p "+build_dir).c_str());
+    for (auto &in : infiles) {
+        sea::compile(in,in+".s");
+        system(("as -64 "+in+".s -o "+in+".o").c_str());
     }
 
     string entry_asm = ".section .text\n"
@@ -31,15 +49,15 @@ int main(int argc, char* argv[]) {
                        "\tmovq %rax, %rdi\n"
                        "\tmovq $60, %rax\n"
                        "\tsyscall\n\n";
-    std::ofstream ofs("_entry.s");
+    std::ofstream ofs(build_dir+"/_sea_entry.c.s");
     ofs << entry_asm;
     ofs.close();
-    system("as -64 _entry.s -o _entry.o");
-    objs.push_back("_entry.o");
+    system(("as -64 "+build_dir+"/_sea_entry.c.s -o "+build_dir+"/_sea_entry.c.o").c_str());
+    infiles.push_back(build_dir+"/_sea_entry.c");
 
     string link_cmd = "ld ";
-    for (auto &obj : objs) link_cmd += obj+' ';
-    link_cmd += "-o sea.out";
+    for (auto &in : infiles) link_cmd += in+".o ";
+    link_cmd += "-o "+outfile;
     system(link_cmd.c_str());
 
     return 0;
