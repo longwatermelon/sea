@@ -789,18 +789,66 @@ main:
 	jz .L_end_8
 	call read_int
 	pushq %rax
-	# restore_rsp_scope
+	subq $8, %rsp
+	subq $8, %rsp
+	pushq $8
+	movq -16(%rbp), %rax
+	movq -48(%rbp), %rbx
+	# tighten_stack
 	addq $8, %rsp
+	imulq %rbx, %rax
+	movq %rax, -40(%rbp)
+	movq a(%rip), %rax
+	movq -40(%rbp), %rbx
+	# tighten_stack
+	addq $8, %rsp
+	addq %rbx, %rax
+	movq %rax, -32(%rbp)
+	movq -32(%rbp), %rbx
+	movq -24(%rbp), %rax
+	movq %rax, (%rbx)
+	subq $8, %rsp
+	pushq $1
+	movq -16(%rbp), %rax
+	movq -48(%rbp), %rbx
+	# tighten_stack
+	addq $8, %rsp
+	addq %rbx, %rax
+	movq %rax, -40(%rbp)
+	movq -40(%rbp), %rax
+	movq %rax, -16(%rbp)
+	# tighten_stack
+	addq $8, %rsp
+	# restore_rsp_scope
+	addq $16, %rsp
 	jmp .L_start_8
 .L_end_8:
+	call read_int
+	pushq %rax
+	subq $8, %rsp
+	subq $8, %rsp
+	pushq $8
+	movq -16(%rbp), %rax
+	movq -48(%rbp), %rbx
 	# tighten_stack
-	addq $-8, %rsp
+	addq $8, %rsp
+	imulq %rbx, %rax
+	movq %rax, -40(%rbp)
+	movq a(%rip), %rax
+	movq -40(%rbp), %rbx
+	# tighten_stack
+	addq $8, %rsp
+	addq %rbx, %rax
+	movq %rax, -32(%rbp)
+	movq -32(%rbp), %rbx
+	movq -24(%rbp), %rax
+	movq %rax, (%rbx)
 	call solve
 	pushq %rax
 	# tighten_stack
 	addq $8, %rsp
 	# restore_rsp_scope
-	addq $16, %rsp
+	addq $24, %rsp
 	jmp .L_start_7
 .L_end_7:
 	# restore_rsp_scope

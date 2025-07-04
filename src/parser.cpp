@@ -50,6 +50,12 @@ uptr<Node> Parser::parse_atom() {
 uptr<Node> Parser::parse_expr(int mn_prec) {
     uptr<Node> left = parse_atom();
 
+    // if ending off compound -- the only type that doesn't need a semicolon
+    // this means ops should treat it as if a semicolon was placed after the cpd
+    if (m_ind>0 && m_toks[m_ind-1].val == "}") {
+        return left;
+    }
+
     while (curtok().type == TType::OP) {
         string op = curtok().val;
         int prec = precedence(op);
