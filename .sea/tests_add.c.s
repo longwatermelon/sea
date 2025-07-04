@@ -24,7 +24,7 @@ main:
 	movq %rbp, %rsp
 	pop %rbp
 	ret
-	# restore_rsp_scope
+	# tighten_stack
 	addq $16, %rsp
 
 	movq %rbp, %rsp

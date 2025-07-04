@@ -51,6 +51,9 @@ vec<Token> Lexer::tokenize() {
             } else if (m_ind+1 < sz(m_prog) && c=='|' && m_prog[m_ind+1]=='|') {
                 op+='|';
                 advance();
+            } else if (m_ind+1 < sz(m_prog) && c=='&' && m_prog[m_ind+1]=='&') {
+                op+='&';
+                advance();
             }
             tokens.push_back(Token(TType::OP, op, m_line));
             advance();

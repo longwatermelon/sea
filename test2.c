@@ -10,10 +10,14 @@ void print_char(int c) {
     syscall(1, 1, &buffer, 1);
 }
 
+void read_skip() {
+    read_char();
+}
+
 int read_int() {
     int ch = read_char();
     int res=0;
-    while (ch != 10) {
+    while (ch != 10 && ch != 32) {
         res = res*10 + ch-48;
         ch = read_char();
     }
@@ -36,15 +40,15 @@ void print_int(int x) {
     }
 }
 
+
+int n=4;
 int main() {
-    int y = read_int();
-    print_int(y);
-    print_char(10);
-    print_int(y*2);
-    print_char(10);
-    return y;
+    int arr = stalloc(4,int);
+    int ind=0;
+    while (ind!=n) {
+        *(arr + ind*sizeof(int)) = read_int();
+        ind = ind+1;
+    }
+    print_int(*arr+*(arr+8)+*(arr+16)+*(arr+24));
+    return 0;
 }
-
-
-
-
