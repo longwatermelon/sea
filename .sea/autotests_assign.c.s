@@ -19,8 +19,6 @@ main:
 	movq %rbp, %rsp
 	pop %rbp
 	ret
-	# restore_rsp_scope
-	addq $16, %rsp
 
 	movq %rbp, %rsp
 	pop %rbp

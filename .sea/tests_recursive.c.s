@@ -46,8 +46,6 @@ f:
 	movq %rbp, %rsp
 	pop %rbp
 	ret
-	# tighten_stack
-	addq $16, %rsp
 
 	movq %rbp, %rsp
 	pop %rbp
@@ -131,8 +129,6 @@ main:
 	movq %rbp, %rsp
 	pop %rbp
 	ret
-	# tighten_stack
-	addq $32, %rsp
 
 	movq %rbp, %rsp
 	pop %rbp

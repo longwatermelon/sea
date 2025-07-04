@@ -20,8 +20,6 @@ f:
 	movq 16(%rbp), %rbx
 	movq -8(%rbp), %rax
 	movq %rax, (%rbx)
-	# restore_rsp_scope
-	addq $8, %rsp
 
 	movq %rbp, %rsp
 	pop %rbp
@@ -85,8 +83,6 @@ main:
 	movq %rbp, %rsp
 	pop %rbp
 	ret
-	# restore_rsp_scope
-	addq $56, %rsp
 
 	movq %rbp, %rsp
 	pop %rbp

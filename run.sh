@@ -11,15 +11,15 @@ failed=0
 total=0
 
 # Find all .c files in tests/
-for c_file in autotests/*.c; do
+for c_file in tests/*.c; do
     if [[ ! -f "$c_file" ]]; then
         continue
     fi
     
     # Extract base name (e.g., prog from tests/prog.c)
     base_name=$(basename "$c_file" .c)
-    out_file="autotests/${base_name}.out"
-    test_exe="autotests/${base_name}_test"
+    out_file="tests/${base_name}.out"
+    test_exe="tests/${base_name}_test"
     
     echo -n "testing $base_name... "
     total=$((total + 1))

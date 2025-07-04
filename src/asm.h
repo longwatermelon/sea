@@ -46,8 +46,6 @@ public:
     void gen_dubref_mov(const string &src, const string &dst);
     // move btw/ directly specified locations
     void gen_stack_mov_raw(const string &src, const string &dst);
-    // addq on rsp if necessary
-    void restore_rsp_scope(int prev_rsp);
 
     Addr addrof(uptr<Node> &node);
     DType dtypeof(uptr<Node> &node);

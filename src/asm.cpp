@@ -4,14 +4,6 @@
 ll Visitor::m_galloc_id = 0;
 
 string Visitor::gen(uptr<Node> &root) {
-    // m_asm = ".section .text\n"
-    //         "\t.global _start\n\n"
-    //         "_start:\n"
-    //         "\tcall main\n"
-    //         "\tmovq %rax, %rdi\n"
-    //         "\tmovq $60, %rax\n"
-    //         "\tsyscall\n\n";
-
     m_asm = ".section .text\n";
     m_asm_data = ".section .data\n";
     gen_expr(root);
@@ -74,18 +66,10 @@ void Visitor::tighten_stack() {
 
     m_rsp+=dif;
     m_asm += "\t# tighten_stack\n\taddq $"+std::to_string(dif)+", %rsp\n";
-    // int dif=0;
-    // while (m_rsp+dif<0 && !m_scope.check_addr(m_rsp+dif)) {
-    //     dif+=8;
-    // }
-    // if (dif==0) return;
-
-    // m_rsp+=dif;
 }
 
 void Visitor::gen_cpd(uptr<Node> &cpd) {
     m_scope.push_layer();
-    int rsp = m_rsp;
     for (auto &node : cpd->cpd_nodes) {
         gen_expr(node);
 
@@ -93,7 +77,7 @@ void Visitor::gen_cpd(uptr<Node> &cpd) {
         cleanup_dangling(node);
         tighten_stack();
     }
-    restore_rsp_scope(rsp);
+    tighten_stack();
     m_scope.pop_layer();
 }
 
@@ -387,24 +371,20 @@ void Visitor::gen_if(uptr<Node> &node) {
              "\tjz "+else_label+"\n";
 
     // body
-    int rsp=m_rsp;
     gen_expr(node->if_body);
     // [cleanup] if_body can technically be non-CPD (`if (x) 5;`) even if it does nothing, cleanup to be safe
     cleanup_dangling(node->if_body);
     tighten_stack();
     // [/cleanup]
-    restore_rsp_scope(rsp);
     m_asm += "\tjmp "+end_label+"\n";
 
     // else
     m_asm += else_label+":\n";
-    rsp=m_rsp;
     if (node->if_else) gen_expr(node->if_else);
     // [cleanup] same reasoning as if_body
     cleanup_dangling(node->if_else);
     tighten_stack();
     // [/cleanup]
-    restore_rsp_scope(rsp);
     m_asm += end_label+":\n";
 }
 
@@ -424,13 +404,11 @@ void Visitor::gen_while(uptr<Node> &node) {
              "\tjz "+end_label+"\n";
 
     // body
-    int rsp=m_rsp;
     gen_expr(node->while_body);
     // [cleanup] same reasoning as gen_if
     cleanup_dangling(node->while_body);
     tighten_stack();
     // [/cleanup]
-    restore_rsp_scope(rsp);
     m_asm += "\tjmp "+start_label+"\n";
     m_asm += end_label+":\n";
 }
@@ -509,13 +487,6 @@ void Visitor::gen_dubref_mov(const string &src, const string &dst) {
 
 void Visitor::gen_stack_mov_raw(const string &src, const string &dst) {
     m_asm += "\tmovq "+src+", "+dst+"\n";
-}
-
-void Visitor::restore_rsp_scope(int prev_rsp) {
-    if (m_rsp != prev_rsp) {
-        m_asm += "\t# restore_rsp_scope\n\taddq $"+std::to_string(prev_rsp-m_rsp)+", %rsp\n";
-        m_rsp = prev_rsp;
-    }
 }
 
 Addr Visitor::addrof(uptr<Node> &node) {
