@@ -1,7 +1,7 @@
 # Sea
 
 <p align="center">
-  <img src="shrimp.png" alt="Parsley" width="800"><br>
+  <img src="parsley.png" alt="Parsley" width="800"><br>
   <span style="color: #888888; font-size: 0.95em;">
     Parsley the Shrimp
   </span>
