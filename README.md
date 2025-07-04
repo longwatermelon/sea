@@ -1,6 +1,11 @@
 # Sea
 
-![Shrimp](shrimp.png)
+<p align="center">
+  <img src="shrimp.png" alt="Parsley" width="800"><br>
+  <span style="color: #888888; font-size: 0.95em;">
+    Parsley the Shrimp
+  </span>
+</p>
 
 C compiler spinoff, eventually aiming for a bootstrapping compiler. Generates x86_64 AT&T assembly.
 
