@@ -588,23 +588,6 @@ solve:
 	addq $8, %rsp
 	jmp .L_start_4
 .L_end_4:
-	movq n(%rip), %rax
-	pushq %rax
-	call print_int
-	# tighten_stack
-	addq $8, %rsp
-	pushq %rax
-	# tighten_stack
-	addq $8, %rsp
-	pushq $10
-	movq -16(%rbp), %rax
-	pushq %rax
-	call print_char
-	# tighten_stack
-	addq $16, %rsp
-	pushq %rax
-	# tighten_stack
-	addq $8, %rsp
 	pushq $1
 	movq -16(%rbp), %rax
 	movq %rax, -8(%rbp)

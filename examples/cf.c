@@ -60,8 +60,6 @@ void solve() {
         i = i+1;
     }
 
-    print_int(n);
-    print_char(10);
     i=1;
     while (i!=n) {
         print_int(*(a + i*sizeof(int)));
