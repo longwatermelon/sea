@@ -15,15 +15,14 @@ read_char:
 	pushq $0
 	leaq buffer(%rip), %rax
 	pushq %rax
-	pushq %rax
 	pushq $1
 	movq -8(%rbp), %rax
 	movq -16(%rbp), %rdi
-	movq -32(%rbp), %rsi
-	movq -40(%rbp), %rdx
+	movq -24(%rbp), %rsi
+	movq -32(%rbp), %rdx
 	syscall
 	# tighten_stack
-	addq $16, %rsp
+	addq $32, %rsp
 	movq buffer(%rip), %rax
 	movq %rbp, %rsp
 	pop %rbp
@@ -44,15 +43,14 @@ print_char:
 	pushq $1
 	leaq buffer(%rip), %rax
 	pushq %rax
-	pushq %rax
 	pushq $1
 	movq -8(%rbp), %rax
 	movq -16(%rbp), %rdi
-	movq -32(%rbp), %rsi
-	movq -40(%rbp), %rdx
+	movq -24(%rbp), %rsi
+	movq -32(%rbp), %rdx
 	syscall
 	# tighten_stack
-	addq $16, %rsp
+	addq $32, %rsp
 
 	movq %rbp, %rsp
 	pop %rbp

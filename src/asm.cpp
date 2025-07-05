@@ -333,7 +333,7 @@ void Visitor::gen_getptr(uptr<Node> &op) {
         cleanup_dangling(op->unop_obj);
         tighten_stack();
         // [/cleanup]
-        gen_stack_push("%rax", op->_addr);
+        // gen_stack_push("%rax", op->_addr);
     } else if (op->unop_obj->type == NType::UNOP && op->unop_obj->unop_type == "*") {
         // LVALUE DEREF
         gen_expr(op->unop_obj->unop_obj);

@@ -31,8 +31,7 @@ main:
 	subq $8, %rsp
 	leaq -8(%rbp), %rax
 	pushq %rax
-	pushq %rax
-	movq -32(%rbp), %rax
+	movq -24(%rbp), %rax
 	movq %rax, -16(%rbp)
 	# tighten_stack
 	addq $8, %rsp
@@ -41,31 +40,30 @@ main:
 	pushq $1
 	leaq -16(%rbp), %rax
 	pushq %rax
-	pushq %rax
-	movq -64(%rbp), %rax
+	movq -48(%rbp), %rax
 	pushq %rax
 	call f
 	# tighten_stack
 	addq $16, %rsp
 	pushq %rax
-	movq -64(%rbp), %rax
+	movq -48(%rbp), %rax
 	# tighten_stack
 	addq $8, %rsp
 	pushq (%rax)
-	movq -48(%rbp), %rax
-	movq -64(%rbp), %rbx
-	# tighten_stack
-	addq $8, %rsp
-	addq %rbx, %rax
-	movq %rax, -40(%rbp)
-	pushq $1
 	movq -40(%rbp), %rax
-	movq -64(%rbp), %rbx
+	movq -48(%rbp), %rbx
 	# tighten_stack
-	addq $8, %rsp
+	addq $16, %rsp
 	addq %rbx, %rax
 	movq %rax, -32(%rbp)
+	pushq $1
 	movq -32(%rbp), %rax
+	movq -40(%rbp), %rbx
+	# tighten_stack
+	addq $16, %rsp
+	addq %rbx, %rax
+	movq %rax, -24(%rbp)
+	movq -24(%rbp), %rax
 	movq %rbp, %rsp
 	pop %rbp
 	ret
