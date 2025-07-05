@@ -1,5 +1,6 @@
 #include "parser.h"
 #include "errors.h"
+#include <cassert>
 
 ll Parser::m_label_id=0;
 
@@ -41,6 +42,8 @@ uptr<Node> Parser::parse_atom() {
     case TType::RPAREN:
     case TType::RBRACE:
     case TType::COMMA:
+    case TType::ARROW:
+    case TType::COLON:
         break;
     }
 
@@ -109,39 +112,6 @@ uptr<Node> Parser::parse_str() {
 }
 
 uptr<Node> Parser::parse_id() {
-    if (is_dtype(curtok().val)) {
-        // data type -- prob declaration of something
-        string dtype_name = curtok().val;
-        DType dtype = str2dtype(dtype_name);
-        advance(TType::ID);
-
-        uptr<Node> nxt = parse_expr();
-
-        // just datatype on its own?
-        if (!nxt) {
-            uptr<Node> res = mkuq<Node>(NType::VAR);
-            res->var_name = dtype_name;
-            return res;
-        }
-
-        // check what's next
-        uptr<Node> res = mkuq<Node>(NType::DEF, dtype);
-        if (nxt->type == NType::FN) {
-            res->def_obj = std::move(nxt);
-        } else if (nxt->type == NType::VAR) {
-            res->def_obj = std::move(nxt);
-        } else if (nxt->type == NType::BINOP && nxt->op_type == "=") {
-            res->def_obj = std::move(nxt);
-        }
-
-        return res;
-    } else {
-        // not data type -- referencing something
-        return parse_var();
-    }
-}
-
-uptr<Node> Parser::parse_var() {
     string name = curtok().val;
     advance(TType::ID);
 
@@ -152,19 +122,32 @@ uptr<Node> Parser::parse_var() {
         return parse_if();
     } else if (name == "while") {
         return parse_while();
+    } else if (name == "fn") {
+        return parse_fdef();
+    } else if (name == "let") {
+        return parse_vardef();
     }
 
-    // not keyword, reference to something code-defined
+    // reference to some program-defined symbol
     uptr<Node> res;
     if (curtok().type == TType::LPAREN) {
+        // function call
         res = mkuq<Node>(NType::FN);
         res->fn_name = name;
-        res->fn_args = parse_fnargs();
 
-        if (curtok().type == TType::LBRACE) {
-            res->fn_body = parse_expr();
+        // args
+        advance(TType::LPAREN);
+        vec<uptr<Node>> args;
+        uptr<Node> expr = parse_expr();
+        while (expr) {
+            args.push_back(std::move(expr));
+            if (curtok().type == TType::COMMA) advance(TType::COMMA);
+            expr = parse_expr();
         }
+        advance(TType::RPAREN);
+        res->fn_args = std::move(args);
     } else {
+        // variable
         res = mkuq<Node>(NType::VAR);
         res->var_name = name;
     }
@@ -172,29 +155,76 @@ uptr<Node> Parser::parse_var() {
     return res;
 }
 
-vec<uptr<Node>> Parser::parse_fnargs() {
-    // lparen
+DType Parser::parse_dtype() {
+    // TODO pointers, generics
+    DType base = str2dtype(curtok().val);
+    advance(TType::ID);
+    return base;
+}
+
+uptr<Node> Parser::parse_vardef() {
+    uptr<Node> vardef = mkuq<Node>(NType::DEF);
+    vardef->def_obj = mkuq<Node>(NType::BINOP);
+    vardef->def_obj->op_type = "=";
+
+    // name
+    vardef->def_obj->op_l = parse_typed_var();
+    vardef->dtype = vardef->def_obj->op_l->dtype;
+
+    // equal sign
+    assert(curtok().val=="=");
+    advance(TType::OP);
+
+    // rhs
+    vardef->def_obj->op_r = parse_expr();
+
+    return vardef;
+}
+
+uptr<Node> Parser::parse_fdef() {
+    uptr<Node> fdef = mkuq<Node>(NType::DEF);
+    fdef->def_obj = mkuq<Node>(NType::FN);
+
+    // name
+    fdef->def_obj->fn_name = curtok().val;
+    advance(TType::ID);
+
+    // params
     advance(TType::LPAREN);
+    vec<uptr<Node>> params;
+    while (curtok().type != TType::RPAREN) {
+        uptr<Node> param = parse_typed_var();
+        params.push_back(std::move(param));
 
-    // args
-    vec<uptr<Node>> res;
-    uptr<Node> expr = parse_expr();
-    while (expr) {
-        res.push_back(std::move(expr));
         if (curtok().type == TType::COMMA) advance(TType::COMMA);
-        expr = parse_expr();
+        else break;
     }
-
-    // rparen
     advance(TType::RPAREN);
+    fdef->def_obj->fn_args = std::move(params);
 
-    return res;
+    // return type
+    advance(TType::ARROW);
+    fdef->dtype = parse_dtype();
+
+    // body
+    fdef->def_obj->fn_body = parse_expr();
+
+    return fdef;
 }
 
 uptr<Node> Parser::parse_ret() {
     uptr<Node> res = mkuq<Node>(NType::RET);
     res->ret_val = parse_expr();
     return res;
+}
+
+uptr<Node> Parser::parse_typed_var() {
+    uptr<Node> var = mkuq<Node>(NType::VAR);
+    var->var_name = curtok().val;
+    advance(TType::ID);
+    advance(TType::COLON);
+    var->dtype = parse_dtype();
+    return var;
 }
 
 uptr<Node> Parser::parse_if() {

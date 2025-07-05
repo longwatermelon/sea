@@ -1,12 +1,12 @@
-int var=4;
+let var:int=4;
 
-void f(int ptr) {
+fn f(ptr:int) -> void {
     *ptr = 2**ptr;
 }
 
-int main() {
-    int x=2;
-    int y=&var;
+fn main() -> int {
+    let x:int=2;
+    let y:int=&var;
     f(&*&*&*&*&*&*y);
     return x+var;
 }

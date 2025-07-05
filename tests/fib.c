@@ -1,8 +1,10 @@
-int fib(int x) {
+fn fib(x:int) -> int {
     if (x==0 || x==1) return x;
     return fib(x-1)+fib(x-2);
 }
 
-int main() {
+fn main() -> int {
     return fib(9);
 }
+
+

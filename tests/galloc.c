@@ -1,6 +1,6 @@
-int arr = galloc(2,int);
+let arr:int = galloc(2,int);
 
-int main() {
+fn main() -> int {
     *arr = 8;
     *(arr+8)=10;
     *(arr+8) = *arr + *(arr+8)*2;

@@ -40,11 +40,15 @@ vec<Token> Lexer::tokenize() {
         } else if (c == ';') {
             tokens.push_back(Token(TType::SEMI, ";", m_line));
             advance();
+        } else if (c == ':') {
+            tokens.push_back(Token(TType::COLON, ":", m_line));
+            advance();
         } else if (c == ',') {
             tokens.push_back(Token(TType::COMMA, ",", m_line));
             advance();
         } else if (c == '+' || c == '-' || c == '*' || c == '/' || c == '=' || c == '%' || c == '|' || c == '&' || c == '!') {
             string op(1,c);
+            // second character?
             if (m_ind+1 < sz(m_prog) && m_prog[m_ind+1]=='=') {
                 op+='=';
                 advance();
@@ -54,8 +58,17 @@ vec<Token> Lexer::tokenize() {
             } else if (m_ind+1 < sz(m_prog) && c=='&' && m_prog[m_ind+1]=='&') {
                 op+='&';
                 advance();
+            } else if (m_ind+1 < sz(m_prog) && c=='-' && m_prog[m_ind+1]=='>') {
+                op += '>';
+                advance();
             }
-            tokens.push_back(Token(TType::OP, op, m_line));
+
+            // potentially change type based on value
+            if (op == "->") {
+                tokens.push_back(Token(TType::ARROW, op, m_line));
+            } else {
+                tokens.push_back(Token(TType::OP, op, m_line));
+            }
             advance();
         } else {
             advance();

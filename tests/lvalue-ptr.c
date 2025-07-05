@@ -1,11 +1,11 @@
-void f(int ptr) {
+fn f(ptr:int) -> void {
     *ptr = *ptr+*ptr;
 }
 
-int main() {
-    int x=5;
-    int y=&x;
-    int z=&y;
+fn main() -> int {
+    let x:int=5;
+    let y:int=&x;
+    let z:int=&y;
     f(*&*&y);
     f(*z);
     return x;

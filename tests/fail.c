@@ -1,4 +1,4 @@
-int main() {
-    int x = 5
+fn main() -> int {
+    let x:int=5
     return x;
 }

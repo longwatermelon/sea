@@ -104,7 +104,7 @@ void Visitor::gen_fdef(uptr<Node> &fdef) {
     for (auto &param : fdef->def_obj->fn_args) {
         m_scope.create_var(param->def_obj->var_name, addr, param->dtype);
         // addr+=8;
-        addr += dtype_size(dtypeof(param));
+        addr += dtype_size(param->dtype);
     }
 
     // fdef
@@ -439,7 +439,7 @@ void Visitor::gen_global_var(uptr<Node> &def) {
             // TODO make this less hacky
             val = "_galloc_array_"+std::to_string(m_galloc_id-1);
         } else {
-            switch (node->dtype) {
+            switch (dtypeof(node)) {
             case DType::INT: val = std::to_string(node->val_int); break;
             case DType::VOID: assert(false); break;
             }

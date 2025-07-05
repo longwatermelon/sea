@@ -19,10 +19,12 @@ private:
     uptr<Node> parse_int();
     uptr<Node> parse_str();
     uptr<Node> parse_id();
+    DType parse_dtype();
 
-    uptr<Node> parse_var();
-    vec<uptr<Node>> parse_fnargs();
+    uptr<Node> parse_vardef();
+    uptr<Node> parse_fdef();
     uptr<Node> parse_ret();
+    uptr<Node> parse_typed_var();
 
     uptr<Node> parse_if();
     uptr<Node> parse_while();

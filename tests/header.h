@@ -1,3 +1,3 @@
-int helper_function() {
+fn helper_function() -> int {
     return 42;
 }

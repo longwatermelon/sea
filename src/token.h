@@ -12,6 +12,8 @@ enum class TType {
     STR,
     COMMA,
     OP,
+    ARROW,
+    COLON,
 };
 
 struct Token {

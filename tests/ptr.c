@@ -1,9 +1,9 @@
-int f(int addr) {
+fn f(addr: int) -> int {
     return *addr;
 }
 
-int main() {
-    int x=5;
-    int y=&x;
+fn main() -> int {
+    let x:int=5;
+    let y:int=&x;
     return 1+*f(&y)+1;
 }

@@ -1,7 +1,7 @@
 #include "header.h"
 
-int main() {
-    int x = helper_function();
-    int y = 5;
+fn main() -> int {
+    let x:int = helper_function();
+    let y:int = 5;
     return x + y;
 }
