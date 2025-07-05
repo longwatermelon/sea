@@ -38,10 +38,34 @@ main:
 	movq -64(%rbp), %rbx
 	movq -56(%rbp), %rax
 	movq %rax, (%rbx)
+	# tighten_stack
+	addq $8, %rsp
 	pushq $30
 	subq $8, %rsp
 	subq $8, %rsp
 	pushq $2
+	pushq $8
+	movq -88(%rbp), %rax
+	movq -96(%rbp), %rbx
+	# tighten_stack
+	addq $16, %rsp
+	imulq %rbx, %rax
+	movq %rax, -80(%rbp)
+	movq -8(%rbp), %rax
+	movq -80(%rbp), %rbx
+	# tighten_stack
+	addq $8, %rsp
+	addq %rbx, %rax
+	movq %rax, -72(%rbp)
+	movq -72(%rbp), %rbx
+	movq -64(%rbp), %rax
+	movq %rax, (%rbx)
+	# tighten_stack
+	addq $8, %rsp
+	pushq $40
+	subq $8, %rsp
+	subq $8, %rsp
+	pushq $3
 	pushq $8
 	movq -96(%rbp), %rax
 	movq -104(%rbp), %rbx
@@ -58,47 +82,29 @@ main:
 	movq -80(%rbp), %rbx
 	movq -72(%rbp), %rax
 	movq %rax, (%rbx)
-	pushq $40
-	subq $8, %rsp
-	subq $8, %rsp
-	pushq $3
-	pushq $8
-	movq -112(%rbp), %rax
-	movq -120(%rbp), %rbx
-	# tighten_stack
-	addq $16, %rsp
-	imulq %rbx, %rax
-	movq %rax, -104(%rbp)
-	movq -8(%rbp), %rax
-	movq -104(%rbp), %rbx
 	# tighten_stack
 	addq $8, %rsp
-	addq %rbx, %rax
-	movq %rax, -96(%rbp)
-	movq -96(%rbp), %rbx
-	movq -88(%rbp), %rax
-	movq %rax, (%rbx)
 	subq $8, %rsp
 	subq $8, %rsp
 	pushq $2
 	pushq $8
-	movq -120(%rbp), %rax
-	movq -128(%rbp), %rbx
+	movq -96(%rbp), %rax
+	movq -104(%rbp), %rbx
 	# tighten_stack
 	addq $16, %rsp
 	imulq %rbx, %rax
-	movq %rax, -112(%rbp)
+	movq %rax, -88(%rbp)
 	movq -8(%rbp), %rax
-	movq -112(%rbp), %rbx
+	movq -88(%rbp), %rbx
 	# tighten_stack
 	addq $8, %rsp
 	addq %rbx, %rax
-	movq %rax, -104(%rbp)
-	movq -104(%rbp), %rax
+	movq %rax, -80(%rbp)
+	movq -80(%rbp), %rax
 	# tighten_stack
 	addq $8, %rsp
 	pushq (%rax)
-	movq -104(%rbp), %rax
+	movq -80(%rbp), %rax
 	movq %rbp, %rsp
 	pop %rbp
 	ret

@@ -99,7 +99,6 @@ void Visitor::gen_fdef(uptr<Node> &fdef) {
     int addr=16;
     for (auto &param : fdef->def_obj->fn_args) {
         m_scope.create_var(param->var_name, addr, param->dtype);
-        // addr+=8;
         addr += dtype_size(param->dtype);
     }
 
@@ -313,7 +312,9 @@ void Visitor::gen_assign(uptr<Node> &op) {
         gen_stack_mov_raw(addrof(op->op_r).repr(), "%rax");
         gen_stack_mov_raw("%rax", "(%rbx)");
 
-        // [cleanup] TODO
+        // [cleanup]
+        cleanup_dangling(op->op_l->unop_obj);
+        tighten_stack();
     }
 }
 

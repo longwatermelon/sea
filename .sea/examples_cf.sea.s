@@ -275,20 +275,22 @@ print_int:
 	movq -200(%rbp), %rbx
 	movq -192(%rbp), %rax
 	movq %rax, (%rbx)
+	# tighten_stack
+	addq $8, %rsp
 	subq $8, %rsp
 	pushq $1
 	movq -176(%rbp), %rax
-	movq -216(%rbp), %rbx
+	movq -208(%rbp), %rbx
 	# tighten_stack
 	addq $8, %rsp
 	addq %rbx, %rax
-	movq %rax, -208(%rbp)
-	movq -208(%rbp), %rax
+	movq %rax, -200(%rbp)
+	movq -200(%rbp), %rax
 	movq %rax, -176(%rbp)
 	# tighten_stack
 	addq $8, %rsp
 	# tighten_stack
-	addq $24, %rsp
+	addq $16, %rsp
 	jmp .L_start_2
 .L_end_2:
 .L_start_3:
@@ -491,65 +493,69 @@ solve:
 	movq -24(%rbp), %rbx
 	movq -16(%rbp), %rax
 	movq %rax, (%rbx)
+	# tighten_stack
+	addq $8, %rsp
 	subq $8, %rsp
 	subq $8, %rsp
 	subq $8, %rsp
 	pushq $8
 	movq n(%rip), %rax
-	movq -56(%rbp), %rbx
-	# tighten_stack
-	addq $8, %rsp
-	imulq %rbx, %rax
-	movq %rax, -48(%rbp)
-	movq a(%rip), %rax
 	movq -48(%rbp), %rbx
 	# tighten_stack
 	addq $8, %rsp
-	addq %rbx, %rax
+	imulq %rbx, %rax
 	movq %rax, -40(%rbp)
-	movq -40(%rbp), %rax
+	movq a(%rip), %rax
+	movq -40(%rbp), %rbx
+	# tighten_stack
+	addq $8, %rsp
+	addq %rbx, %rax
+	movq %rax, -32(%rbp)
+	movq -32(%rbp), %rax
 	# tighten_stack
 	addq $8, %rsp
 	pushq (%rax)
 	pushq $1
-	movq -40(%rbp), %rax
-	movq -48(%rbp), %rbx
+	movq -32(%rbp), %rax
+	movq -40(%rbp), %rbx
 	# tighten_stack
 	addq $16, %rsp
 	addq %rbx, %rax
-	movq %rax, -32(%rbp)
+	movq %rax, -24(%rbp)
 	subq $8, %rsp
 	subq $8, %rsp
 	pushq $8
 	movq n(%rip), %rax
-	movq -56(%rbp), %rbx
-	# tighten_stack
-	addq $8, %rsp
-	imulq %rbx, %rax
-	movq %rax, -48(%rbp)
-	movq a(%rip), %rax
 	movq -48(%rbp), %rbx
 	# tighten_stack
 	addq $8, %rsp
-	addq %rbx, %rax
+	imulq %rbx, %rax
 	movq %rax, -40(%rbp)
+	movq a(%rip), %rax
 	movq -40(%rbp), %rbx
-	movq -32(%rbp), %rax
+	# tighten_stack
+	addq $8, %rsp
+	addq %rbx, %rax
+	movq %rax, -32(%rbp)
+	movq -32(%rbp), %rbx
+	movq -24(%rbp), %rax
 	movq %rax, (%rbx)
+	# tighten_stack
+	addq $8, %rsp
 	subq $8, %rsp
 	pushq $1
 	movq k(%rip), %rax
-	movq -56(%rbp), %rbx
+	movq -40(%rbp), %rbx
 	# tighten_stack
 	addq $8, %rsp
 	subq %rbx, %rax
-	movq %rax, -48(%rbp)
-	movq -48(%rbp), %rax
+	movq %rax, -32(%rbp)
+	movq -32(%rbp), %rax
 	movq %rax, k(%rip)
 	# tighten_stack
 	addq $8, %rsp
 	# tighten_stack
-	addq $32, %rsp
+	addq $16, %rsp
 	jmp .L_start_5
 .L_end_5:
 	subq $8, %rsp
@@ -766,20 +772,22 @@ main:
 	movq -32(%rbp), %rbx
 	movq -24(%rbp), %rax
 	movq %rax, (%rbx)
+	# tighten_stack
+	addq $8, %rsp
 	subq $8, %rsp
 	pushq $1
 	movq -16(%rbp), %rax
-	movq -48(%rbp), %rbx
+	movq -40(%rbp), %rbx
 	# tighten_stack
 	addq $8, %rsp
 	addq %rbx, %rax
-	movq %rax, -40(%rbp)
-	movq -40(%rbp), %rax
+	movq %rax, -32(%rbp)
+	movq -32(%rbp), %rax
 	movq %rax, -16(%rbp)
 	# tighten_stack
 	addq $8, %rsp
 	# tighten_stack
-	addq $16, %rsp
+	addq $8, %rsp
 	jmp .L_start_8
 .L_end_8:
 	call read_int
@@ -802,12 +810,14 @@ main:
 	movq -32(%rbp), %rbx
 	movq -24(%rbp), %rax
 	movq %rax, (%rbx)
+	# tighten_stack
+	addq $8, %rsp
 	call solve
 	pushq %rax
 	# tighten_stack
 	addq $8, %rsp
 	# tighten_stack
-	addq $24, %rsp
+	addq $16, %rsp
 	jmp .L_start_7
 .L_end_7:
 
