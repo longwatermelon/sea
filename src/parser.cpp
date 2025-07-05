@@ -171,12 +171,15 @@ uptr<Node> Parser::parse_vardef() {
     vardef->def_obj->op_l = parse_typed_var();
     vardef->dtype = vardef->def_obj->op_l->dtype;
 
-    // equal sign
-    assert(curtok().val=="=");
-    advance(TType::OP);
+    // rhs?
+    if (curtok().type == TType::OP && curtok().val == "=") {
+        // equal sign
+        assert(curtok().val=="=");
+        advance(TType::OP);
 
-    // rhs
-    vardef->def_obj->op_r = parse_expr();
+        // rhs
+        vardef->def_obj->op_r = parse_expr();
+    }
 
     return vardef;
 }

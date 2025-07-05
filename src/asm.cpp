@@ -23,17 +23,13 @@ void Visitor::gen_expr(uptr<Node> &expr) {
                 gen_global_var(expr);
             } else {
                 // stack based
-                if (expr->def_obj->type == NType::VAR) {
-                    Addr addr;
-                    gen_stack_reserve(addr);
-                    m_scope.create_var(expr->def_obj->var_name, addr, expr->dtype);
-                } else if (expr->def_obj->type == NType::BINOP && expr->def_obj->op_type == "=") {
-                    Addr addr;
-                    gen_stack_reserve(addr);
-                    m_scope.create_var(expr->def_obj->op_l->var_name, addr, expr->dtype);
+                Addr addr;
+                gen_stack_reserve(addr);
+                m_scope.create_var(expr->def_obj->op_l->var_name, addr, expr->dtype);
+
+                // rhs not null? then carry out assign op like normal
+                if (expr->def_obj->op_r) {
                     gen_expr(expr->def_obj);
-                } else {
-                    throw std::runtime_error("[Visitor::gen_expr] def_obj wasn't FN or VAR or BINOP assignment");
                 }
             }
         }
@@ -102,7 +98,7 @@ void Visitor::gen_fdef(uptr<Node> &fdef) {
     // prep params
     int addr=16;
     for (auto &param : fdef->def_obj->fn_args) {
-        m_scope.create_var(param->def_obj->var_name, addr, param->dtype);
+        m_scope.create_var(param->var_name, addr, param->dtype);
         // addr+=8;
         addr += dtype_size(param->dtype);
     }
@@ -418,21 +414,12 @@ void Visitor::gen_str(uptr<Node> &node) {
 }
 
 void Visitor::gen_global_var(uptr<Node> &def) {
-    string name;
-    uptr<Node> *val_node=nullptr;
-    if (def->def_obj->type == NType::VAR) {
-        name = def->def_obj->var_name;
-    } else if (def->def_obj->type == NType::BINOP && def->def_obj->op_type == "=") {
-        name = def->def_obj->op_l->var_name;
-        val_node = &def->def_obj->op_r;
-    } else {
-        throw std::runtime_error("[Visitor::gen_global_var] invalid global def");
-    }
+    string name = def->def_obj->op_l->var_name;;
 
     // gen val string repr to be assigned
     string val;
-    if (val_node) {
-        uptr<Node> &node = *val_node;
+    if (def->def_obj->op_r) {
+        uptr<Node> &node = def->def_obj->op_r;
         // galloc?
         if (node->type == NType::FN) {
             gen_fcall(node);
