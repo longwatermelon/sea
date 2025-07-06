@@ -1,5 +1,3 @@
-// WRITTEN BY CLAUDE
-
 #include "preprocessor.h"
 #include <fstream>
 #include <sstream>
