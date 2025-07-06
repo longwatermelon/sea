@@ -9,7 +9,9 @@
 
 C compiler spinoff, eventually aiming for a bootstrapping compiler. Generates x86_64 AT&T assembly.
 
-[Claude](https://claude.ai/code) wrote `src/preprocessor.cpp` and `./run.sh`.
+[Claude](https://claude.ai/code)'s contributions:
+* `src/preprocessor.cpp`, `src/preprocessor.h`
+* `./run.sh`
 
 ## Program Flow
 

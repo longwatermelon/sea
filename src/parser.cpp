@@ -36,7 +36,6 @@ uptr<Node> Parser::parse_atom() {
         return res;
     }
     case TType::OP: return parse_unop();
-    case TType::LBRACK: return parse_indexing();
 
     // all useless
     case TType::SEMI:
@@ -46,6 +45,7 @@ uptr<Node> Parser::parse_atom() {
     case TType::ARROW:
     case TType::COLON:
     case TType::RBRACK:
+    case TType::LBRACK:
         break;
     }
 
@@ -61,6 +61,22 @@ uptr<Node> Parser::parse_expr(int mn_prec) {
         return left;
     }
 
+    // indexing
+    while (curtok().type == TType::LBRACK) {
+        uptr<Node> res = mkuq<Node>(NType::UNOP);
+        res->unop_type = "*";
+
+        res->unop_obj = mkuq<Node>(NType::BINOP);
+        res->unop_obj->op_type = "+";
+        res->unop_obj->op_l = std::move(left);
+        advance(TType::LBRACK);
+        res->unop_obj->op_r = parse_expr();
+        advance(TType::RBRACK);
+
+        left = std::move(res);
+    }
+
+    // binops
     while (curtok().type == TType::OP) {
         string op = curtok().val;
         int prec = precedence(op);
@@ -115,6 +131,12 @@ uptr<Node> Parser::parse_str() {
 
 uptr<Node> Parser::parse_id() {
     string name = curtok().val;
+
+    // type
+    if (is_dtypebase(name)) {
+        return parse_dtype();
+    }
+
     advance(TType::ID);
 
     // keywords
@@ -157,17 +179,19 @@ uptr<Node> Parser::parse_id() {
     return res;
 }
 
-DType Parser::parse_dtype() {
+uptr<Node> Parser::parse_dtype() {
     // TODO pointers, generics
-    DType res;
-    res.base = str2dtypebase(curtok().val);
+    DType dtype;
+    dtype.base = str2dtypebase(curtok().val);
     advance(TType::ID);
 
     while (curtok().type == TType::OP && curtok().val == "*") {
-        res.ptrcnt++;
+        dtype.ptrcnt++;
         advance(TType::OP);
     }
 
+    uptr<Node> res = mkuq<Node>(NType::DTYPE);
+    res->dtype_type = dtype;
     return res;
 }
 
@@ -216,7 +240,7 @@ uptr<Node> Parser::parse_fdef() {
 
     // return type
     advance(TType::ARROW);
-    fdef->dtype = parse_dtype();
+    fdef->dtype = parse_dtype()->dtype_type;
 
     // body
     fdef->def_obj->fn_body = parse_expr();
@@ -235,7 +259,7 @@ uptr<Node> Parser::parse_typed_var() {
     var->var_name = curtok().val;
     advance(TType::ID);
     advance(TType::COLON);
-    var->dtype = parse_dtype();
+    var->dtype = parse_dtype()->dtype_type;
     return var;
 }
 
@@ -285,10 +309,4 @@ uptr<Node> Parser::parse_unop() {
     res->unop_obj = parse_expr(100);
 
     return res;
-}
-
-uptr<Node> Parser::parse_indexing() {
-    // TODO
-    uptr<Node> res = mkuq<Node>(NType::UNOP);
-    res->unop_type = "*";
 }

@@ -45,6 +45,7 @@ void Visitor::gen_expr(uptr<Node> &expr) {
     case NType::IF: gen_if(expr); break;
     case NType::WHILE: gen_while(expr); break;
     case NType::STR: gen_str(expr); break;
+    case NType::DTYPE: break;
     }
 }
 
@@ -185,9 +186,9 @@ void Visitor::gen_builtin_syscall(uptr<Node> &fcall) {
 }
 
 void Visitor::gen_builtin_stalloc(uptr<Node> &fcall) {
-    // require 2 argument: a VAL integer (# elements), and a VAR type (element types).
+    // require 2 argument: a VAL integer (# elements), and a DTYPE type (element types).
     int cnt = fcall->fn_args[0]->val_int;
-    DTypeBase type = str2dtypebase(fcall->fn_args[1]->var_name);
+    DType type = fcall->fn_args[1]->dtype_type;
     int bytes = cnt * dtype_size(type);
 
     // alloc space
@@ -202,8 +203,7 @@ void Visitor::gen_builtin_stalloc(uptr<Node> &fcall) {
 
 void Visitor::gen_builtin_sizeof(uptr<Node> &fcall) {
     // require 1 argument: a type.
-    // will be parsed as VAR
-    DTypeBase type = str2dtypebase(fcall->fn_args[0]->var_name);
+    DType type = fcall->fn_args[0]->dtype_type;
 
     // push ans
     int ans = dtype_size(type);
@@ -211,9 +211,9 @@ void Visitor::gen_builtin_sizeof(uptr<Node> &fcall) {
 }
 
 void Visitor::gen_builtin_galloc(uptr<Node> &fcall) {
-    // require 2 arguments: VAL int (# elements), VAR (element type).
+    // require 2 arguments: VAL int (# elements), DTYPE (element type).
     int cnt = fcall->fn_args[0]->val_int;
-    DTypeBase type = str2dtypebase(fcall->fn_args[1]->var_name);
+    DType type = fcall->fn_args[1]->dtype_type;
     int bytes = cnt * dtype_size(type);
 
     // alloc space
@@ -490,10 +490,11 @@ Addr Visitor::addrof(uptr<Node> &node) {
     case NType::RET:
     case NType::IF:
     case NType::WHILE:
+    case NType::DTYPE:
         break;
     }
 
-    return -2;
+    return -1;
 }
 
 DType Visitor::dtypeof(uptr<Node> &node) {
@@ -504,6 +505,7 @@ DType Visitor::dtypeof(uptr<Node> &node) {
     case NType::UNOP: return dtypeof(node->unop_obj);
     case NType::VAL: return node->dtype;
     case NType::VAR: return m_scope.find_var_dtype(node->var_name);
+    case NType::DTYPE: return node->dtype_type;
     case NType::WHILE:
     case NType::STR:
     case NType::RET:

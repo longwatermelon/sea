@@ -19,7 +19,7 @@ private:
     uptr<Node> parse_int();
     uptr<Node> parse_str();
     uptr<Node> parse_id();
-    DType parse_dtype();
+    uptr<Node> parse_dtype();
 
     uptr<Node> parse_vardef();
     uptr<Node> parse_fdef();
@@ -30,7 +30,6 @@ private:
     uptr<Node> parse_while();
 
     uptr<Node> parse_unop();
-    uptr<Node> parse_indexing();
 
 public:
     Token curtok() const {return m_toks[m_ind];}

@@ -14,6 +14,7 @@ enum class NType {
     UNOP, // unary operator
     WHILE, // while loop
     STR, // string literal
+    DTYPE, // dtype, needed for recognizing "int*" as an expression
 };
 
 enum class DTypeBase {
@@ -29,7 +30,7 @@ struct DType {
     DType(DTypeBase base, int ptrcnt=0) : base(base), ptrcnt(ptrcnt) {}
 };
 
-inline bool is_dtype(const string &s) {
+inline bool is_dtypebase(const string &s) {
     return s=="int" || s=="void";
 }
 
@@ -116,4 +117,7 @@ struct Node {
     // string
     string str_val;
     int str_id;
+
+    // dtype
+    DType dtype_type;
 };

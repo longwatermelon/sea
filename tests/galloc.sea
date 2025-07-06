@@ -1,4 +1,4 @@
-let arr:int = galloc(2,int);
+let arr:int* = galloc(2,int);
 
 fn main() -> int {
     *arr = 8;
