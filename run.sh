@@ -10,14 +10,14 @@ passed=0
 failed=0
 total=0
 
-# Find all .c files in tests/
-for c_file in tests/*.c; do
+# Find all .sea files in tests/
+for c_file in tests/*.sea; do
     if [[ ! -f "$c_file" ]]; then
         continue
     fi
     
-    # Extract base name (e.g., prog from tests/prog.c)
-    base_name=$(basename "$c_file" .c)
+    # Extract base name (e.g., prog from tests/prog.sea)
+    base_name=$(basename "$c_file" .sea)
     out_file="tests/${base_name}.out"
     test_exe="tests/${base_name}_test"
     

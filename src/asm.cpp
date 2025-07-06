@@ -187,7 +187,7 @@ void Visitor::gen_builtin_syscall(uptr<Node> &fcall) {
 void Visitor::gen_builtin_stalloc(uptr<Node> &fcall) {
     // require 2 argument: a VAL integer (# elements), and a VAR type (element types).
     int cnt = fcall->fn_args[0]->val_int;
-    DType type = str2dtype(fcall->fn_args[1]->var_name);
+    DTypeBase type = str2dtypebase(fcall->fn_args[1]->var_name);
     int bytes = cnt * dtype_size(type);
 
     // alloc space
@@ -203,7 +203,7 @@ void Visitor::gen_builtin_stalloc(uptr<Node> &fcall) {
 void Visitor::gen_builtin_sizeof(uptr<Node> &fcall) {
     // require 1 argument: a type.
     // will be parsed as VAR
-    DType type = str2dtype(fcall->fn_args[0]->var_name);
+    DTypeBase type = str2dtypebase(fcall->fn_args[0]->var_name);
 
     // push ans
     int ans = dtype_size(type);
@@ -213,7 +213,7 @@ void Visitor::gen_builtin_sizeof(uptr<Node> &fcall) {
 void Visitor::gen_builtin_galloc(uptr<Node> &fcall) {
     // require 2 arguments: VAL int (# elements), VAR (element type).
     int cnt = fcall->fn_args[0]->val_int;
-    DType type = str2dtype(fcall->fn_args[1]->var_name);
+    DTypeBase type = str2dtypebase(fcall->fn_args[1]->var_name);
     int bytes = cnt * dtype_size(type);
 
     // alloc space
@@ -235,9 +235,9 @@ void Visitor::gen_ret(uptr<Node> &ret) {
 }
 
 void Visitor::gen_val(uptr<Node> &val) {
-    switch (val->dtype) {
-    case DType::INT: gen_stack_push("$"+std::to_string(val->val_int), val->_addr); break;
-    case DType::VOID: throw std::runtime_error("[Visitor::gen_val] unreachable void"); break;
+    switch (val->dtype.base) {
+    case DTypeBase::INT: gen_stack_push("$"+std::to_string(val->val_int), val->_addr); break;
+    case DTypeBase::VOID: throw std::runtime_error("[Visitor::gen_val] unreachable void"); break;
     }
 }
 
@@ -427,22 +427,22 @@ void Visitor::gen_global_var(uptr<Node> &def) {
             // TODO make this less hacky
             val = "_galloc_array_"+std::to_string(m_galloc_id-1);
         } else {
-            switch (dtypeof(node)) {
-            case DType::INT: val = std::to_string(node->val_int); break;
-            case DType::VOID: assert(false); break;
+            switch (dtypeof(node).base) {
+            case DTypeBase::INT: val = std::to_string(node->val_int); break;
+            case DTypeBase::VOID: assert(false); break;
             }
         }
     } else {
-        switch (def->dtype) {
-        case DType::INT: val = "0"; break;
-        case DType::VOID: assert(false); break;
+        switch (def->dtype.base) {
+        case DTypeBase::INT: val = "0"; break;
+        case DTypeBase::VOID: assert(false); break;
         }
     }
 
     // gen .data asm
-    switch (def->dtype) {
-    case DType::INT: m_asm_data += name+": .quad "+val+"\n"; break;
-    case DType::VOID: assert(false); break;
+    switch (def->dtype.base) {
+    case DTypeBase::INT: m_asm_data += name+": .quad "+val+"\n"; break;
+    case DTypeBase::VOID: assert(false); break;
     }
 
     m_scope.create_var(name, Addr(name), def->dtype);

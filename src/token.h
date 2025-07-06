@@ -7,6 +7,8 @@ enum class TType {
     RPAREN,
     LBRACE,
     RBRACE,
+    LBRACK,
+    RBRACK,
     SEMI,
     INT,
     STR,

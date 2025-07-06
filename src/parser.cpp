@@ -36,6 +36,7 @@ uptr<Node> Parser::parse_atom() {
         return res;
     }
     case TType::OP: return parse_unop();
+    case TType::LBRACK: return parse_indexing();
 
     // all useless
     case TType::SEMI:
@@ -44,6 +45,7 @@ uptr<Node> Parser::parse_atom() {
     case TType::COMMA:
     case TType::ARROW:
     case TType::COLON:
+    case TType::RBRACK:
         break;
     }
 
@@ -96,7 +98,7 @@ uptr<Node> Parser::parse_cpd() {
 }
 
 uptr<Node> Parser::parse_int() {
-    uptr<Node> val = mkuq<Node>(NType::VAL, DType::INT);
+    uptr<Node> val = mkuq<Node>(NType::VAL, DType(DTypeBase::INT));
     val->val_int = std::stoi(curtok().val.c_str());
     advance(TType::INT);
     return val;
@@ -157,9 +159,16 @@ uptr<Node> Parser::parse_id() {
 
 DType Parser::parse_dtype() {
     // TODO pointers, generics
-    DType base = str2dtype(curtok().val);
+    DType res;
+    res.base = str2dtypebase(curtok().val);
     advance(TType::ID);
-    return base;
+
+    while (curtok().type == TType::OP && curtok().val == "*") {
+        res.ptrcnt++;
+        advance(TType::OP);
+    }
+
+    return res;
 }
 
 uptr<Node> Parser::parse_vardef() {
@@ -276,4 +285,10 @@ uptr<Node> Parser::parse_unop() {
     res->unop_obj = parse_expr(100);
 
     return res;
+}
+
+uptr<Node> Parser::parse_indexing() {
+    // TODO
+    uptr<Node> res = mkuq<Node>(NType::UNOP);
+    res->unop_type = "*";
 }

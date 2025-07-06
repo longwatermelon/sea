@@ -30,6 +30,7 @@ private:
     uptr<Node> parse_while();
 
     uptr<Node> parse_unop();
+    uptr<Node> parse_indexing();
 
 public:
     Token curtok() const {return m_toks[m_ind];}

@@ -16,26 +16,38 @@ enum class NType {
     STR, // string literal
 };
 
-enum class DType {
+enum class DTypeBase {
     INT,
     VOID,
+};
+
+struct DType {
+    DTypeBase base = DTypeBase::VOID;
+    int ptrcnt=0;
+
+    DType()=default;
+    DType(DTypeBase base, int ptrcnt=0) : base(base), ptrcnt(ptrcnt) {}
 };
 
 inline bool is_dtype(const string &s) {
     return s=="int" || s=="void";
 }
 
-inline DType str2dtype(const string &s) {
-    if (s=="int") return DType::INT;
-    else if (s=="void") return DType::VOID;
+inline DTypeBase str2dtypebase(const string &s) {
+    if (s=="int") return DTypeBase::INT;
+    else if (s=="void") return DTypeBase::VOID;
     else throw std::runtime_error("str2dtype failed");
     // TODO better error
 }
 
 inline int dtype_size(DType type) {
-    switch (type) {
-    case DType::INT: return 8;
-    case DType::VOID: return 0;
+    if (type.ptrcnt>0) {
+        return 8;
+    }
+
+    switch (type.base) {
+    case DTypeBase::INT: return 8;
+    case DTypeBase::VOID: return 0;
     }
 }
 
@@ -59,7 +71,7 @@ struct Addr {
 
 struct Node {
     Node()=default;
-    Node(NType type, DType dtype=DType::VOID) : type(type), dtype(dtype) {}
+    Node(NType type, DType dtype=DType()) : type(type), dtype(dtype) {}
 
     NType type;
     DType dtype;

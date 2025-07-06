@@ -46,6 +46,12 @@ vec<Token> Lexer::tokenize() {
         } else if (c == ',') {
             tokens.push_back(Token(TType::COMMA, ",", m_line));
             advance();
+        } else if (c == '[') {
+            tokens.push_back(Token(TType::LBRACK, "[", m_line));
+            advance();
+        } else if (c == ']') {
+            tokens.push_back(Token(TType::RBRACK, "]", m_line));
+            advance();
         } else if (c == '+' || c == '-' || c == '*' || c == '/' || c == '=' || c == '%' || c == '|' || c == '&' || c == '!') {
             string op(1,c);
             // second character?
