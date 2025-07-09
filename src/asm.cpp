@@ -272,6 +272,25 @@ void Visitor::gen_binop(uptr<Node> &op) {
 
     if (math) {
         gen_stack_reserve(op->_addr);
+
+        // pointer arithmetic -- special edge case
+        if (op->op_type == "+") {
+            DType ldtype = dtypeof(op->op_l);
+            if (ldtype.ptrcnt > 0) {
+                DType base = ldtype;
+                base.ptrcnt--;
+                int esize = dtype_size(base);
+
+                // turn op_r into a binop *
+                uptr<Node> op_r = mkuq<Node>(NType::BINOP);
+                op_r->op_type = "*";
+                op_r->op_l = std::move(op->op_r);
+                op_r->op_r = mkuq<Node>(NType::VAL, DType(DTypeBase::INT));
+                op_r->op_r->val_int = esize;
+                op->op_r = std::move(op_r);
+            }
+        }
+
         gen_expr(op->op_l);
         gen_expr(op->op_r);
         gen_stack_mov_raw(addrof(op->op_l).repr(), "%rax");
@@ -502,7 +521,12 @@ DType Visitor::dtypeof(uptr<Node> &node) {
     case NType::BINOP: return dtypeof(node->op_l);
     case NType::DEF: return node->dtype;
     case NType::FN: return m_scope.find_fn(node->fn_name).first;
-    case NType::UNOP: return dtypeof(node->unop_obj);
+    case NType::UNOP: {
+        DType dtype = dtypeof(node->unop_obj);
+        if (node->unop_type == "*") dtype.ptrcnt--;
+        else if (node->unop_type == "&") dtype.ptrcnt++;
+        return dtype;
+    } break;
     case NType::VAL: return node->dtype;
     case NType::VAR: return m_scope.find_var_dtype(node->var_name);
     case NType::DTYPE: return node->dtype_type;

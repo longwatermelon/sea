@@ -26,31 +26,31 @@ fn print_int(x:int) -> void {
         return 0;
     }
 
-    let arr:int = stalloc(20,int);
+    let arr:int* = stalloc(20,int);
     let ind:int=0;
     while (x!=0) {
         let rem:int = x%10;
         x = x/10;
-        *(arr+ind*sizeof(int))=rem+48;
+        arr[ind] = rem+48;
         ind = ind+1;
     }
 
     while (ind!=0) {
         ind = ind-1;
-        print_char(*(arr + ind*sizeof(int)));
+        print_char(arr[ind]);
     }
 }
 
 let n:int;
 let k:int;
-let a:int = galloc(101,int);
+let a:int* = galloc(101,int);
 
 fn solve() -> void {
     let i:int=1;
     while (i!=n && k!=0) {
-        while (k!=0 && *(a + i*sizeof(int))!=0) {
-            *(a + i*sizeof(int)) = *(a + i*sizeof(int))-1;
-            *(a + n*sizeof(int)) = *(a + n*sizeof(int))+1;
+        while (k!=0 && a[i]!=0) {
+            a[i] = a[i]-1;
+            a[n] = a[n]+1;
             k = k-1;
         }
         i = i+1;
@@ -58,11 +58,11 @@ fn solve() -> void {
 
     i=1;
     while (i!=n) {
-        print_int(*(a + i*sizeof(int)));
+        print_int(a[i]);
         print_char(32);
         i=i+1;
     }
-    print_int(*(a + n*sizeof(int)));
+    print_int(a[n]);
     print_char(10);
 }
 
@@ -74,11 +74,10 @@ fn main() -> int {
         k=read_int();
 
         let ind:int=1;
-        while (ind!=n) {
-            *(a + ind*sizeof(int)) = read_int();
+        while (ind!=n+1) {
+            a[ind] = read_int();
             ind = ind+1;
         }
-        *(a + ind*sizeof(int)) = read_int();
 
         solve();
     }
