@@ -7,7 +7,7 @@
 #include <fstream>
 #include <filesystem>
 
-void sea::compile(const string &path, const string &out) {
+void sea::compile(const string &path, const string &out, Arch arch) {
     std::ifstream ifs(path);
     std::stringstream buf;
     buf << ifs.rdbuf();
@@ -23,7 +23,7 @@ void sea::compile(const string &path, const string &out) {
     Parser p(toks);
     uptr<Node> root = p.parse();
 
-    Visitor vis;
+    Visitor vis(arch);
     string prog_asm = vis.gen(root);
 
     std::ofstream ofs(out);

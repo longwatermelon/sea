@@ -36,12 +36,13 @@ inline int precedence(const string &op) {
     return ans[op];
 }
 
-inline string stkloc(int addr) {
-    return std::to_string(addr)+"(%rbp)";
-}
-
 enum class TType;
 enum class NType;
 
 string ttype2str(TType type);
 string ntype2str(NType type);
+
+enum class Arch {
+    x86_64,
+    ARM64,
+};

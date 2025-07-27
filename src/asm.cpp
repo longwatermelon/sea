@@ -4,8 +4,16 @@
 ll Visitor::m_galloc_id = 0;
 
 string Visitor::gen(uptr<Node> &root) {
-    m_asm = ".section .text\n";
-    m_asm_data = ".section .data\n";
+    switch (m_arch) {
+    case Arch::x86_64: {
+        m_asm = ".section .text\n";
+        m_asm_data = ".section .data\n";
+    } break;
+    case Arch::ARM64: {
+        m_asm = ".text\n";
+        m_asm_data = ".data\n";
+    } break;
+    }
     gen_expr(root);
     return m_asm_data + "\n" + m_asm;
 }
@@ -23,8 +31,7 @@ void Visitor::gen_expr(uptr<Node> &expr) {
                 gen_global_var(expr);
             } else {
                 // stack based
-                Addr addr;
-                gen_stack_reserve(addr);
+                Addr addr = gen_stack_reserve(dtype_size(expr->dtype));
                 m_scope.create_var(expr->def_obj->op_l->var_name, addr, expr->dtype);
 
                 // rhs not null? then carry out assign op like normal
@@ -44,7 +51,8 @@ void Visitor::gen_expr(uptr<Node> &expr) {
     case NType::FN: gen_fcall(expr); break;
     case NType::IF: gen_if(expr); break;
     case NType::WHILE: gen_while(expr); break;
-    case NType::STR: gen_str(expr); break;
+    // TODO
+    case NType::STR: break;
     case NType::DTYPE: break;
     }
 }
@@ -52,17 +60,21 @@ void Visitor::gen_expr(uptr<Node> &expr) {
 void Visitor::cleanup_dangling(uptr<Node> &node) {
     if (node && node->_addr.type == AType::RBP && node->_addr.exists()) {
         m_scope.del_stkaddr(node->_addr.rbp_addr);
-        node->_addr = -1;
+        node->_addr = Addr::stack(-1);
     }
 }
 
 void Visitor::tighten_stack() {
-    int rsp_new = m_scope.top_stkaddr();
-    int dif = rsp_new-m_rsp;
+    int tos_new = m_scope.top_stkaddr();
+    int dif = tos_new-m_tos;
     if (dif==0) return;
 
-    m_rsp+=dif;
-    m_asm += "\t# tighten_stack\n\taddq $"+std::to_string(dif)+", %rsp\n";
+    m_tos+=dif;
+
+    // switch (m_arch) {
+    // case Arch::x86_64: m_asm += "\t# tighten_stack\n\taddq $"+std::to_string(dif)+", %rsp\n"; break;
+    // case Arch::ARM64: m_asm += "\t// tighten_stack\n\tadd sp, sp, #"+std::to_string(dif)+"\n"; break;
+    // }
 }
 
 void Visitor::gen_cpd(uptr<Node> &cpd) {
@@ -93,30 +105,48 @@ void Visitor::gen_fdef(uptr<Node> &fdef) {
 
     // prep separate scope
     m_scope.push_layer();
-    int prev_rsp = m_rsp;
-    m_rsp=0;
+    int prev_tos = m_tos;
+    m_tos=0;
 
     // prep params
     int addr=16;
     for (auto &param : fdef->def_obj->fn_args) {
-        m_scope.create_var(param->var_name, addr, param->dtype);
+        m_scope.create_var(param->var_name, Addr::stack(addr), param->dtype);
         addr += dtype_size(param->dtype);
     }
 
     // fdef
-    m_asm += ".global "+fdef->def_obj->fn_name+"\n"+fdef->def_obj->fn_name+":\n";
-    m_asm += "\tpush %rbp\n"
-             "\tmovq %rsp, %rbp\n\n";
+    switch (m_arch) {
+    case Arch::x86_64: {
+        m_asm += ".global "+fdef->def_obj->fn_name+"\n"+fdef->def_obj->fn_name+":\n";
+        m_asm += "\tpush %rbp\n"
+                 "\tmovq %rsp, %rbp\n\n";
+    } break;
+    case Arch::ARM64: {
+        m_asm += ".global "+fdef->def_obj->fn_name+"\n"+fdef->def_obj->fn_name+":\n";
+        m_asm += "\tstp x29, x30, [sp, #-16]!\n"
+                 "\tmov x29, sp\n";
+    } break;
+    }
 
     gen_expr(fdef->def_obj->fn_body);
     // [cleanup] fn body never allocates stack space
 
-    m_asm += "\n\tmovq %rbp, %rsp\n"
-             "\tpop %rbp\n"
-             "\tret\n\n";
+    switch (m_arch) {
+    case Arch::x86_64: {
+        m_asm += "\n\tmovq %rbp, %rsp\n"
+                 "\tpop %rbp\n"
+                 "\tret\n\n";
+    } break;
+    case Arch::ARM64: {
+        m_asm += "\n\tmov sp, x29\n"
+                 "\tldp x29, x30, [sp], #16\n"
+                 "\tret\n\n";
+    } break;
+    }
 
     // restore og scope
-    m_rsp = prev_rsp;
+    m_tos = prev_tos;
     m_scope.pop_layer();
 }
 
@@ -144,39 +174,49 @@ void Visitor::gen_fcall(uptr<Node> &fcall) {
     for (int i=sz(fcall->fn_args)-1; i>=0; --i) {
         auto &arg = fcall->fn_args[i];
         Addr addr = addrof(arg);
-        gen_stack_mov_raw(addr.repr(), "%rax");
+        gen_mov(addr, regtmp());
 
-        Addr tmp;
-        gen_stack_push("%rax", tmp);
+        Addr tmp = gen_stack_push(regtmp(), dtype_size(dtypeof(arg)));
     }
 
     // call function, store return address on stack
-    m_asm += "\tcall "+fcall->fn_name+"\n";
+    switch (m_arch) {
+    case Arch::x86_64: m_asm += "\tcall "+fcall->fn_name+"\n"; break;
+    case Arch::ARM64: m_asm += "\tbl "+fcall->fn_name+"\n"; break;
+    }
 
     // [cleanup] args, which are dangling now. do it before pushing fcall result to stack
-    // IMPORTANT: none of these ops should touch rax.
+    // IMPORTANT: none of these ops should touch regtmp.
     m_scope.del_stkaddr_top_n(sz(fcall->fn_args));
     for (auto &arg : fcall->fn_args) cleanup_dangling(arg);
     tighten_stack();
     // [/cleanup]
 
-    gen_stack_push("%rax", fcall->_addr);
+    fcall->_addr = gen_stack_push(regtmp(), dtype_size(dtypeof(fcall)));
 }
 
 void Visitor::gen_builtin_syscall(uptr<Node> &fcall) {
     // push
-    vec<string> reg_ord = {"%rax", "%rdi", "%rsi", "%rdx"};
+    vec<string> reg_ord;
+    switch (m_arch) {
+    case Arch::x86_64: reg_ord = {"%rax", "%rdi", "%rsi", "%rdx"}; break;
+    case Arch::ARM64: reg_ord = {"x8", "x0", "x1", "x2"}; break;
+    }
+
     for (int i=0; i<sz(fcall->fn_args); ++i) {
         gen_expr(fcall->fn_args[i]);
     }
 
     for (int i=0; i<sz(fcall->fn_args); ++i) {
         Addr addr = addrof(fcall->fn_args[i]);
-        gen_stack_mov_raw(addr.repr(), reg_ord[i]);
+        gen_mov(addr, Addr::reg(reg_ord[i]));
     }
 
     // call
-    m_asm += "\tsyscall\n";
+    switch (m_arch) {
+    case Arch::x86_64: m_asm += "\tsyscall\n"; break;
+    case Arch::ARM64: m_asm += "\tsvc #0\n"; break;
+    }
 
     // cleanup
     for (auto &x : fcall->fn_args) {
@@ -192,22 +232,25 @@ void Visitor::gen_builtin_stalloc(uptr<Node> &fcall) {
     int bytes = cnt * dtype_size(type);
 
     // alloc space
-    m_asm += "\tsubq $"+std::to_string(bytes)+", %rsp\n";
-    m_rsp -= bytes;
-    m_scope.claim_stkaddr(m_rsp);
+    switch (m_arch) {
+    case Arch::x86_64: m_asm += "\tsubq $"+std::to_string(bytes)+", %rsp\n"; break;
+    case Arch::ARM64: m_asm += "\tsub sp, sp, #"+std::to_string(bytes)+"\n"; break;
+    }
+    m_tos -= bytes;
+    m_scope.claim_stkaddr(m_tos);
 
     // return ptr to this space
-    gen_stack_mov_raw("%rsp", "%rax");
-    gen_stack_push("%rax", fcall->_addr);
+    gen_mov(Addr::stack(m_tos), regtmp());
+    fcall->_addr = gen_stack_push(regtmp(), dtype_size(dtypeof(fcall)));
 }
 
 void Visitor::gen_builtin_sizeof(uptr<Node> &fcall) {
     // require 1 argument: a type.
     DType type = fcall->fn_args[0]->dtype_type;
 
-    // push ans
-    int ans = dtype_size(type);
-    gen_stack_push("$"+std::to_string(ans), fcall->_addr);
+    gen_store_literal(dtype_size(type), regtmp());
+    // 8 bytes because sizeof returns 64-bit int integer
+    gen_stack_push(regtmp(), 8);
 }
 
 void Visitor::gen_builtin_galloc(uptr<Node> &fcall) {
@@ -222,21 +265,33 @@ void Visitor::gen_builtin_galloc(uptr<Node> &fcall) {
     m_asm_data += label+": .zero "+std::to_string(bytes)+"\n";
 
     // return addr
-    fcall->_addr = Addr(label);
+    fcall->_addr = Addr::global(label);
 }
 
 void Visitor::gen_ret(uptr<Node> &ret) {
     gen_expr(ret->ret_val);
     // gen_stack_mov_raw(stkloc(addrof(ret->ret_val)), "%rax");
-    gen_stack_mov_raw(addrof(ret->ret_val).repr(), "%rax");
-    m_asm += "\tmovq %rbp, %rsp\n"
-             "\tpop %rbp\n"
-             "\tret\n";
+    gen_mov(addrof(ret->ret_val), regtmp());
+    switch (m_arch) {
+    case Arch::x86_64: {
+        m_asm += "\n\tmovq %rbp, %rsp\n"
+                 "\tpop %rbp\n"
+                 "\tret\n\n";
+    } break;
+    case Arch::ARM64: {
+        m_asm += "\n\tmov sp, x29\n"
+                 "\tldp x29, x30, [sp], #16\n"
+                 "\tret\n\n";
+    } break;
+    }
 }
 
 void Visitor::gen_val(uptr<Node> &val) {
     switch (val->dtype.base) {
-    case DTypeBase::INT: gen_stack_push("$"+std::to_string(val->val_int), val->_addr); break;
+    case DTypeBase::INT: {
+        gen_store_literal(val->val_int, regtmp());
+        val->_addr = gen_stack_push(regtmp(), dtype_size(DType(DTypeBase::INT)));
+    } break;
     case DTypeBase::VOID: throw std::runtime_error("[Visitor::gen_val] unreachable void"); break;
     }
 }
@@ -244,34 +299,66 @@ void Visitor::gen_val(uptr<Node> &val) {
 void Visitor::gen_binop(uptr<Node> &op) {
     bool math=true;
     string math_expr;
-    if (op->op_type == "+") {
-        math_expr = "\taddq %rbx, %rax\n";
-    } else if (op->op_type == "-") {
-        math_expr = "\tsubq %rbx, %rax\n";
-    } else if (op->op_type == "*") {
-        math_expr = "\timulq %rbx, %rax\n";
-    } else if (op->op_type == "/") {
-        math_expr = "\tcqto\n\tidivq %rbx\n";
-    } else if (op->op_type == "%") {
-        math_expr = "\tcqto\n\tidivq %rbx\n";
-    } else if (op->op_type == "==") {
-        math_expr = "\tcmp %rbx, %rax\n"
-                    "\tsete %al\n"
-                    "\tmovzbl %al, %eax\n";
-    } else if (op->op_type == "!=") {
-        math_expr = "\tcmp %rbx, %rax\n"
-                    "\tsetne %al\n"
-                    "\tmovzbl %al, %eax\n";
-    } else if (op->op_type == "||") {
-        math_expr = "\tor %rbx, %rax\n";
-    } else if (op->op_type == "&&") {
-        math_expr = "\tand %rbx, %rax\n";
-    } else {
-        math=false;
+
+    switch (m_arch) {
+    case Arch::x86_64: {
+        if (op->op_type == "+") {
+            math_expr = "\taddq %rbx, %rax\n";
+        } else if (op->op_type == "-") {
+            math_expr = "\tsubq %rbx, %rax\n";
+        } else if (op->op_type == "*") {
+            math_expr = "\timulq %rbx, %rax\n";
+        } else if (op->op_type == "/") {
+            math_expr = "\tcqto\n\tidivq %rbx\n";
+        } else if (op->op_type == "%") {
+            math_expr = "\tcqto\n\tidivq %rbx\n";
+        } else if (op->op_type == "==") {
+            math_expr = "\tcmp %rbx, %rax\n"
+                        "\tsete %al\n"
+                        "\tmovzbl %al, %eax\n";
+        } else if (op->op_type == "!=") {
+            math_expr = "\tcmp %rbx, %rax\n"
+                        "\tsetne %al\n"
+                        "\tmovzbl %al, %eax\n";
+        } else if (op->op_type == "||") {
+            math_expr = "\tor %rbx, %rax\n";
+        } else if (op->op_type == "&&") {
+            math_expr = "\tand %rbx, %rax\n";
+        } else {
+            math=false;
+        }
+    } break;
+
+    case Arch::ARM64: {
+        if (op->op_type == "+") {
+            math_expr = "\tadd x0, x0, x1\n";
+        } else if (op->op_type == "-") {
+            math_expr = "\tsub x0, x0, x1\n";
+        } else if (op->op_type == "*") {
+            math_expr = "\tmul x0, x0, x1\n";
+        } else if (op->op_type == "/") {
+            math_expr = "\tsdiv x0, x0, x1\n";
+        } else if (op->op_type == "%") {
+            math_expr = "\tsdiv x2, x0, x1\nmsub x0, x2, x1, x0\n";
+        } else if (op->op_type == "==") {
+            math_expr = "\tcmp x0, x1\n"
+                        "\tcset x0, eq\n";
+        } else if (op->op_type == "!=") {
+            math_expr = "\tcmp x0, x1\n"
+                        "\tcset x0, ne\n";
+        } else if (op->op_type == "||") {
+            math_expr = "\torr x0, x0, x1\n";
+        } else if (op->op_type == "&&") {
+            math_expr = "\tand x0, x0, x1\n";
+        } else {
+            math=false;
+        }
+    } break;
     }
 
+
     if (math) {
-        gen_stack_reserve(op->_addr);
+        op->_addr = gen_stack_reserve(dtype_size(dtypeof(op->op_l)));
 
         // pointer arithmetic -- special edge case
         if (op->op_type == "+") {
@@ -293,8 +380,8 @@ void Visitor::gen_binop(uptr<Node> &op) {
 
         gen_expr(op->op_l);
         gen_expr(op->op_r);
-        gen_stack_mov_raw(addrof(op->op_l).repr(), "%rax");
-        gen_stack_mov_raw(addrof(op->op_r).repr(), "%rbx");
+        gen_mov(addrof(op->op_l), regtmp());
+        gen_mov(addrof(op->op_r), regtmp(1));
         // [cleanup] op_l and op_r are impossible to reference from here on out
         cleanup_dangling(op->op_l);
         cleanup_dangling(op->op_r);
@@ -302,9 +389,9 @@ void Visitor::gen_binop(uptr<Node> &op) {
         // [/cleanup]
         m_asm += math_expr;
 
-        string tg = "%rax";
-        if (op->op_type == "%") tg = "%rdx";
-        gen_stack_mov_raw(tg, op->_addr.repr());
+        Addr tg = regtmp();
+        if (m_arch == Arch::x86_64 && op->op_type == "%") tg = Addr::reg("%rdx");
+        gen_mov(tg, op->_addr);
     } else {
         if (op->op_type == "=") {
             gen_assign(op);
@@ -319,7 +406,9 @@ void Visitor::gen_assign(uptr<Node> &op) {
     if (op->op_l->type == NType::VAR) {
         // move result to var in op_l
         assert(m_scope.var_exists(op->op_l->var_name));
-        gen_dubref_mov(addrof(op->op_r).repr(), m_scope.find_var(op->op_l->var_name).repr());
+        gen_mov(addrof(op->op_r), regtmp());
+        gen_mov(regtmp(), m_scope.find_var(op->op_l->var_name));
+        // gen_dubref_mov(addrof(op->op_r).repr(), m_scope.find_var(op->op_l->var_name).repr());
 
         // [cleanup] op_r is useless now that op_l is the handle to op_r's value. op_l is VAR and doesn't need to be cleaned.
         cleanup_dangling(op->op_r);
@@ -327,9 +416,14 @@ void Visitor::gen_assign(uptr<Node> &op) {
     } else if (op->op_l->type == NType::UNOP && op->op_l->unop_type == "*") {
         // eval dereferenced object, get loc of it
         gen_expr(op->op_l->unop_obj);
-        gen_stack_mov_raw(addrof(op->op_l->unop_obj).repr(), "%rbx");
-        gen_stack_mov_raw(addrof(op->op_r).repr(), "%rax");
-        gen_stack_mov_raw("%rax", "(%rbx)");
+        gen_mov(addrof(op->op_l->unop_obj), regtmp(1));
+        gen_mov(addrof(op->op_r), regtmp());
+
+        gen_mov(regtmp(), deref_reg(regtmp(1)));
+        // switch (m_arch) {
+        // case Arch::x86_64: gen_mov(regtmp(), deref_reg(regtmp(1))"(%rbx)"); break;
+        // case Arch::ARM64: gen_mov("x0", "[x1]"); break;
+        // }
 
         // [cleanup]
         cleanup_dangling(op->op_l->unop_obj);
@@ -347,29 +441,29 @@ void Visitor::gen_unop(uptr<Node> &op) {
 
 void Visitor::gen_getptr(uptr<Node> &op) {
     if (op->unop_obj->type == NType::VAR) {
-        m_asm += "\tleaq "+addrof(op->unop_obj).repr()+", %rax\n";
+        m_asm += "\tleaq "+addrof(op->unop_obj).repr(m_arch)+", %rax\n";
         // [cleanup]
         cleanup_dangling(op->unop_obj);
         tighten_stack();
         // [/cleanup]
-        // gen_stack_push("%rax", op->_addr);
     } else if (op->unop_obj->type == NType::UNOP && op->unop_obj->unop_type == "*") {
         // LVALUE DEREF
         gen_expr(op->unop_obj->unop_obj);
-        gen_stack_mov_raw(addrof(op->unop_obj->unop_obj).repr(), "%rax");
+        gen_mov(addrof(op->unop_obj->unop_obj), regtmp());
     }
 
-    gen_stack_push("%rax", op->_addr);
+    // TODO un-hardcode ptr size of 8
+    op->_addr = gen_stack_push(regtmp(), 8);
 }
 
 void Visitor::gen_deref(uptr<Node> &op) {
     gen_expr(op->unop_obj);
-    gen_stack_mov_raw(addrof(op->unop_obj).repr(), "%rax");
+    gen_mov(addrof(op->unop_obj), regtmp());
     // [cleanup]
     cleanup_dangling(op->unop_obj);
     tighten_stack();
     // [/cleanup]
-    gen_stack_push("(%rax)", op->_addr);
+    op->_addr = gen_stack_push(deref_reg(regtmp()), dtype_size(dtypeof(op)));
 }
 
 void Visitor::gen_if(uptr<Node> &node) {
@@ -378,13 +472,20 @@ void Visitor::gen_if(uptr<Node> &node) {
 
     // conditional
     gen_expr(node->if_cond);
-    gen_stack_mov_raw(addrof(node->if_cond).repr(), "%rax");
+    gen_mov(addrof(node->if_cond), regtmp());
     // [cleanup] if_cond is dangling now
     cleanup_dangling(node->if_cond);
     tighten_stack();
     // [/cleanup]
-    m_asm += "\ttest %rax, %rax\n"
-             "\tjz "+else_label+"\n";
+    switch (m_arch) {
+    case Arch::x86_64: {
+        m_asm += "\ttest %rax, %rax\n"
+                 "\tjz "+else_label+"\n";
+    } break;
+    case Arch::ARM64: {
+        m_asm += "\tcbz x0, "+else_label+"\n";
+    } break;
+    }
 
     // body
     gen_expr(node->if_body);
@@ -392,7 +493,10 @@ void Visitor::gen_if(uptr<Node> &node) {
     cleanup_dangling(node->if_body);
     tighten_stack();
     // [/cleanup]
-    m_asm += "\tjmp "+end_label+"\n";
+    switch (m_arch) {
+    case Arch::x86_64: m_asm += "\tjmp "+end_label+"\n"; break;
+    case Arch::ARM64: m_asm += "\tb "+end_label+"\n"; break;
+    }
 
     // else
     m_asm += else_label+":\n";
@@ -411,13 +515,20 @@ void Visitor::gen_while(uptr<Node> &node) {
 
     // cond
     gen_expr(node->while_cond);
-    gen_stack_mov_raw(addrof(node->while_cond).repr(), "%rax");
+    gen_mov(addrof(node->while_cond), regtmp());
     // [cleanup] while_cond is dangling now
     cleanup_dangling(node->while_cond);
     tighten_stack();
     // [/cleanup]
-    m_asm += "\ttest %rax, %rax\n"
-             "\tjz "+end_label+"\n";
+    switch (m_arch) {
+    case Arch::x86_64: {
+        m_asm += "\ttest %rax, %rax\n"
+                 "\tjz "+end_label+"\n";
+    } break;
+    case Arch::ARM64: {
+        m_asm += "\tcbz x0, "+end_label+"\n";
+    } break;
+    }
 
     // body
     gen_expr(node->while_body);
@@ -425,12 +536,11 @@ void Visitor::gen_while(uptr<Node> &node) {
     cleanup_dangling(node->while_body);
     tighten_stack();
     // [/cleanup]
-    m_asm += "\tjmp "+start_label+"\n";
+    switch (m_arch) {
+    case Arch::x86_64: m_asm += "\tjmp "+start_label+"\n"; break;
+    case Arch::ARM64: m_asm += "\tb "+start_label+"\n"; break;
+    }
     m_asm += end_label+":\n";
-}
-
-void Visitor::gen_str(uptr<Node> &node) {
-    // TODO TODAY
 }
 
 void Visitor::gen_global_var(uptr<Node> &def) {
@@ -464,36 +574,85 @@ void Visitor::gen_global_var(uptr<Node> &def) {
     case DTypeBase::VOID: assert(false); break;
     }
 
-    m_scope.create_var(name, Addr(name), def->dtype);
+    m_scope.create_var(name, Addr::global(name), def->dtype);
 }
 
-void Visitor::gen_stack_push(const string &val, Addr &addr) {
-    m_rsp-=8;
-    m_scope.claim_stkaddr(m_rsp);
-    m_asm += "\tpushq "+val+"\n";
-    addr = Addr(m_rsp);
+Addr Visitor::gen_stack_push(Addr src, int nbytes) {
+    Addr res = gen_stack_reserve(nbytes);
+    gen_mov(src, res);
+    return res;
 }
 
-void Visitor::gen_stack_reserve(Addr &addr) {
-    m_asm += "\tsubq $8, %rsp\n";
-    m_rsp-=8;
-    m_scope.claim_stkaddr(m_rsp);
-    addr = Addr(m_rsp);
+Addr Visitor::gen_stack_reserve(int nbytes) {
+    Addr addr;
+    switch (m_arch) {
+    case Arch::x86_64: {
+        m_asm += "\tsubq $"+std::to_string(nbytes)+", %rsp\n";
+        m_tos-=nbytes;
+        m_sp-=nbytes;
+        m_scope.claim_stkaddr(m_tos);
+        addr = Addr::stack(m_tos);
+    } break;
+    case Arch::ARM64: {
+        m_tos -= nbytes;
+        // sp must be 16 byte aligned in arm64
+        while (m_tos < m_sp) {
+            m_sp-=16;
+            m_asm += "\tsub sp, sp, #16\n";
+        }
+
+        m_scope.claim_stkaddr(m_tos);
+        addr = Addr::stack(m_tos);
+    } break;
+    }
+
+    return addr;
 }
 
-void Visitor::gen_stack_pop(const string &dst) {
-    m_scope.del_stkaddr(m_rsp);
-    m_rsp+=8;
-    m_asm += "\tpopq "+dst+"\n";
+void Visitor::gen_mov(Addr src, Addr dst) {
+    switch (m_arch) {
+    case Arch::x86_64: {
+        m_asm += "\tmovq "+src.repr(m_arch)+", "+dst.repr(m_arch)+"\n";
+    } break;
+    case Arch::ARM64: {
+        if (src.type == AType::RBP) {
+            m_asm += "\tldr "+dst.repr(m_arch)+", "+src.repr(m_arch)+"\n";
+        } else if (dst.type == AType::RBP) {
+            m_asm += "\tstr "+src.repr(m_arch)+", "+dst.repr(m_arch)+"\n";
+        } else if (src.type == AType::RIP) {
+            string reg = dst.repr(m_arch)=="x0"?"x1":"x0";
+            m_asm += "\tadrp "+reg+", "+src.repr(m_arch)+"\n"
+                     "\tldr "+dst.repr(m_arch)+", ["+reg+", :lo12:"+src.repr(m_arch)+"]\n";
+        } else if (dst.type == AType::RIP) {
+            string reg = src.repr(m_arch)=="x0"?"x1":"x0";
+            m_asm += "\tadrp "+reg+", "+dst.repr(m_arch)+"\n"
+                     "\tstr "+src.repr(m_arch)+", ["+reg+", :lo12:"+dst.repr(m_arch)+"]\n";
+        } else {
+            m_asm += "\tmov "+dst.repr(m_arch)+", "+src.repr(m_arch)+"\n";
+        }
+    } break;
+    }
 }
 
-void Visitor::gen_dubref_mov(const string &src, const string &dst) {
-    gen_stack_mov_raw(src, "%rax");
-    gen_stack_mov_raw("%rax", dst);
+Addr Visitor::gen_load_global_addr(Addr addr, int reg_num) {
+    Addr reg = regtmp(reg_num);
+    switch (m_arch) {
+    case Arch::x86_64: {
+        m_asm += "\tleaq "+addr.repr(m_arch)+", "+reg.repr(m_arch)+"\n";
+    } break;
+    case Arch::ARM64: {
+        m_asm += "\tadrp "+reg.repr(m_arch)+", "+addr.repr(m_arch)+"\n"
+                 "\tadd "+reg.repr(m_arch)+", "+reg.repr(m_arch)+", :lo12:"+addr.repr(m_arch)+"\n";
+    } break;
+    }
+    return deref_reg(reg);
 }
 
-void Visitor::gen_stack_mov_raw(const string &src, const string &dst) {
-    m_asm += "\tmovq "+src+", "+dst+"\n";
+void Visitor::gen_store_literal(int val, Addr reg) {
+    switch (m_arch) {
+    case Arch::x86_64: m_asm += "\tmovq $"+std::to_string(val)+", "+reg.repr(m_arch)+"\n"; break;
+    case Arch::ARM64: m_asm += "\tmov "+reg.repr(m_arch)+", #"+std::to_string(val)+"\n"; break;
+    }
 }
 
 Addr Visitor::addrof(uptr<Node> &node) {
@@ -513,7 +672,7 @@ Addr Visitor::addrof(uptr<Node> &node) {
         break;
     }
 
-    return -1;
+    assert(false);
 }
 
 DType Visitor::dtypeof(uptr<Node> &node) {

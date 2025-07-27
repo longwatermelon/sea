@@ -55,19 +55,50 @@ inline int dtype_size(DType type) {
 enum class AType {
     RBP,
     RIP,
+    REG,
 };
 
 struct Addr {
     AType type=AType::RBP;
     int rbp_addr=-1;
     string rip_addr;
+    string reg_name;
 
     Addr()=default;
-    Addr(int rbp_offset) : type(AType::RBP), rbp_addr(rbp_offset) {}
-    Addr(const string &rip_name) : type(AType::RIP), rip_addr(rip_name) {}
+    static Addr stack(int offset) { return Addr(AType::RBP, offset); }
+    static Addr global(const string& name) { return Addr(AType::RIP, name); }
+    static Addr reg(const string& name) { return Addr(AType::REG, name); }
 
-    string repr() const {return type==AType::RBP ? stkloc(rbp_addr) : rip_addr+"(%rip)";}
+    string repr(Arch arch) const {
+        switch (type) {
+        case AType::RBP: {
+            switch (arch) {
+            case Arch::x86_64: return std::to_string(rbp_addr)+"(%rbp)";
+            case Arch::ARM64: return "[x29, #"+std::to_string(rbp_addr)+"]";
+            }
+        } break;
+        case AType::RIP: {
+            switch (arch) {
+            case Arch::x86_64: return rip_addr+"(%rip)";
+            case Arch::ARM64: return rip_addr;
+            }
+        } break;
+        case AType::REG: return reg_name;
+        }
+    }
     bool exists() const {return type==AType::RBP ? rbp_addr!=-1 : sz(rip_addr)>0;}
+
+    bool is_mem() const {
+        switch (type) {
+        case AType::RBP: return true;
+        case AType::RIP: return true;
+        case AType::REG: return reg_name[0]=='[';
+        }
+    }
+
+private:
+    Addr(AType t, int offset) : type(t), rbp_addr(offset) {}
+    Addr(AType t, const string& name) : type(t), rip_addr(t==AType::RIP ? name : ""), reg_name(t==AType::REG ? name : "") {}
 };
 
 struct Node {

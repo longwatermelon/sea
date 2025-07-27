@@ -4,7 +4,7 @@
 
 class Visitor {
 public:
-    Visitor()=default;
+    Visitor(Arch arch) : m_arch(arch) {}
 
     string gen(uptr<Node> &root);
     void gen_expr(uptr<Node> &expr);
@@ -33,28 +33,49 @@ public:
     void gen_if(uptr<Node> &node);
     void gen_while(uptr<Node> &node);
 
-    void gen_str(uptr<Node> &node);
     void gen_global_var(uptr<Node> &def);
 
     // push val to stack, track its offset in addr. addr is RBP rel
-    void gen_stack_push(const string &val, Addr &addr);
-    // reserve space for value, make addr RBP rel
-    void gen_stack_reserve(Addr &addr);
-    // pop stack item into dst
-    void gen_stack_pop(const string &dst);
-    // move src to dst, both being references (rbp/rip)
-    void gen_dubref_mov(const string &src, const string &dst);
-    // move btw/ directly specified locations
-    void gen_stack_mov_raw(const string &src, const string &dst);
+    Addr gen_stack_push(Addr src, int nbytes);
+    // reserve nbytes of space for value, make addr RBP rel
+    Addr gen_stack_reserve(int nbytes);
+    // mov instruction from src to dst
+    void gen_mov(Addr src, Addr dst);
+    // load global from addr into register
+    Addr gen_load_global_addr(Addr addr, int reg_num);
+    // store literal in register
+    void gen_store_literal(int val, Addr reg);
 
     Addr addrof(uptr<Node> &node);
     DType dtypeof(uptr<Node> &node);
 
+    Addr regtmp(int n=0) {
+        switch (m_arch) {
+        case Arch::x86_64: return Addr::reg("%r"+string(1,'a'+n)+"x");
+        case Arch::ARM64: return Addr::reg("x"+std::to_string(n));
+        }
+    }
+
+    Addr deref_reg(Addr addr) {
+        string name = addr.repr(m_arch);
+        switch (m_arch) {
+        case Arch::x86_64: name = "("+name+")"; break;
+        case Arch::ARM64: name = "["+name+"]"; break;
+        }
+
+        Addr res = addr;
+        res.reg_name = name;
+        return res;
+    }
+
 private:
     string m_asm, m_asm_data;
-    int m_rsp=0; // stack ptr
+    // current top of stack, actual stack pointer (capacity)
+    int m_tos=0, m_sp=0;
 
     Scope m_scope;
 
     static ll m_galloc_id;
+
+    Arch m_arch;
 };
