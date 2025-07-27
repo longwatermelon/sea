@@ -123,7 +123,7 @@ void Visitor::gen_fdef(uptr<Node> &fdef) {
                  "\tmovq %rsp, %rbp\n\n";
     } break;
     case Arch::ARM64: {
-        m_asm += ".global "+fdef->def_obj->fn_name+"\n"+fdef->def_obj->fn_name+":\n";
+        m_asm += ".global _"+fdef->def_obj->fn_name+"\n_"+fdef->def_obj->fn_name+":\n";
         m_asm += "\tstp x29, x30, [sp, #-16]!\n"
                  "\tmov x29, sp\n";
     } break;
@@ -182,7 +182,7 @@ void Visitor::gen_fcall(uptr<Node> &fcall) {
     // call function, store return address on stack
     switch (m_arch) {
     case Arch::x86_64: m_asm += "\tcall "+fcall->fn_name+"\n"; break;
-    case Arch::ARM64: m_asm += "\tbl "+fcall->fn_name+"\n"; break;
+    case Arch::ARM64: m_asm += "\tbl _"+fcall->fn_name+"\n"; break;
     }
 
     // [cleanup] args, which are dangling now. do it before pushing fcall result to stack

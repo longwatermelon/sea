@@ -4,18 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Sea is a C compiler spinoff that generates x86_64 AT&T assembly. It's designed as a bootstrapping compiler project with a clear compilation pipeline: Lexer → Parser → Code Generator → Assembly/Linking.
+Sea is a C compiler spinoff that generates cross-platform assembly (x86_64 AT&T and ARM64). It's designed as a bootstrapping compiler project with a clear compilation pipeline: Lexer → Parser → Code Generator → Assembly/Linking. The compiler uses its own C-like syntax (.sea files) rather than standard C.
 
 ## Build Commands
 
 - **Build**: `make` or `make sea` - Builds the compiler executable (`a.out`)
 - **Clean**: `make clean` - Removes build artifacts in `obj/` and `a.out`
 - **Run all tests**: `./run.sh` - Executes the comprehensive test suite
-- **Compile a file**: `./a.out [file.c]` - Compiles C source to executable (`sea.out`)
+- **Compile a file**: `./a.out [file.sea]` - Compiles Sea source to executable (`sea.out`)
 
 ## Testing
 
-The test suite (`./run.sh`) automatically discovers all `.c` files in `tests/` and compares their output against corresponding `.out` files. Each `.out` file contains:
+The test suite (`./run.sh`) automatically discovers all `.sea` files in `tests/` and compares their output against corresponding `.out` files. Each `.out` file contains:
 - `RETURN_CODE:` - Expected exit code
 - `STDOUT:` - Expected output
 
@@ -27,7 +27,7 @@ Tests cover both successful compilation/execution and compilation error scenario
 
 1. **Lexer** (`src/lexer.{h,cpp}`) - Tokenizes C source code
 2. **Parser** (`src/parser.{h,cpp}`) - Builds AST using recursive descent parsing
-3. **Code Generator** (`src/asm.{h,cpp}`) - Traverses AST and generates x86_64 assembly
+3. **Code Generator** (`src/asm.{h,cpp}`) - Traverses AST and generates cross-platform assembly
 4. **Preprocessor** (`src/preprocessor.{h,cpp}`) - Handles include directives
 5. **Scope Management** (`src/scope.{h,cpp}`) - Tracks variable scoping and addresses
 
@@ -44,7 +44,7 @@ Tests cover both successful compilation/execution and compilation error scenario
 2. **Lexer** - Tokenizes input source
 3. **Parser** - Builds AST from tokens with recursive descent
 4. **Visitor** - Traverses AST and generates assembly code
-5. **System calls** - Assembles with `as` and links with `ld`
+5. **System calls** - Assembles with `as` and links with platform-specific linker (`ld` on Linux, `clang` on macOS)
 
 ## Adding New Features
 
@@ -62,11 +62,19 @@ Built-ins are handled specially in `gen_fcall()`:
 - `sizeof()` - Type size calculation
 - `galloc()` - Global allocation
 
+## Cross-Platform Support
+
+The compiler automatically detects architecture:
+- **Linux**: Generates x86_64 assembly, uses `ld` for linking
+- **macOS**: Generates ARM64 assembly, uses `clang` for linking with proper symbol naming (underscore prefixes)
+
+Architecture detection happens at compile time via preprocessor flags (`__APPLE__`, `__linux__`).
+
 ## Code Style
 
 - Uses custom utility types: `vec<T>`, `uptr<T>`, `string`, `ll`
 - C++17 standard with strict compiler flags (`-Wall -Wextra -pedantic`)
-- Stack-based memory management with careful tracking of RSP offsets
+- Stack-based memory management with careful tracking of stack offsets
 - Assembly generation includes both code generation and stack cleanup
 
 ## File Structure
