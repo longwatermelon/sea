@@ -40,9 +40,8 @@ public:
     // reserve nbytes of space for value, make addr RBP rel
     Addr gen_stack_reserve(int nbytes);
     // mov instruction from src to dst
+    // uses x3 if src and dst are both memory refs
     void gen_mov(Addr src, Addr dst);
-    // load global from addr into register
-    Addr gen_load_global_addr(Addr addr, int reg_num);
     // store literal in register
     void gen_store_literal(int val, Addr reg);
 
@@ -51,8 +50,16 @@ public:
 
     Addr regtmp(int n=0) {
         switch (m_arch) {
-        case Arch::x86_64: return Addr::reg("%r"+string(1,'a'+n)+"x");
-        case Arch::ARM64: return Addr::reg("x"+std::to_string(n));
+        // TODO
+        case Arch::x86_64: return Addr::reg("%r"+std::to_string(10+n));
+        case Arch::ARM64: return Addr::reg("x"+std::to_string(n+9));
+        }
+    }
+
+    Addr regret() {
+        switch (m_arch) {
+        case Arch::x86_64: return Addr::reg("%rax");
+        case Arch::ARM64: return Addr::reg("x0");
         }
     }
 

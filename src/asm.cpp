@@ -105,8 +105,9 @@ void Visitor::gen_fdef(uptr<Node> &fdef) {
 
     // prep separate scope
     m_scope.push_layer();
-    int prev_tos = m_tos;
+    int prev_tos = m_tos, prev_sp = m_sp;
     m_tos=0;
+    m_sp=0;
 
     // prep params
     int addr=16;
@@ -147,6 +148,7 @@ void Visitor::gen_fdef(uptr<Node> &fdef) {
 
     // restore og scope
     m_tos = prev_tos;
+    m_sp = prev_sp;
     m_scope.pop_layer();
 }
 
@@ -170,6 +172,16 @@ void Visitor::gen_fcall(uptr<Node> &fcall) {
     for (auto &arg : fcall->fn_args) {
         gen_expr(arg);
     }
+
+    int s=0;
+    for (int i=0; i<sz(fcall->fn_args); ++i) {
+        s += dtype_size(dtypeof(fcall->fn_args[i]));
+    }
+    int x = ((-m_tos-s)%16+16)%16;
+    if (x>0) {
+        Addr dummy = gen_stack_reserve(x);
+    }
+
     // push args from their cur locations to the front
     for (int i=sz(fcall->fn_args)-1; i>=0; --i) {
         auto &arg = fcall->fn_args[i];
@@ -192,7 +204,7 @@ void Visitor::gen_fcall(uptr<Node> &fcall) {
     tighten_stack();
     // [/cleanup]
 
-    fcall->_addr = gen_stack_push(regtmp(), dtype_size(dtypeof(fcall)));
+    fcall->_addr = gen_stack_push(regret(), dtype_size(dtypeof(fcall)));
 }
 
 void Visitor::gen_builtin_syscall(uptr<Node> &fcall) {
@@ -232,16 +244,16 @@ void Visitor::gen_builtin_stalloc(uptr<Node> &fcall) {
     int bytes = cnt * dtype_size(type);
 
     // alloc space
-    switch (m_arch) {
-    case Arch::x86_64: m_asm += "\tsubq $"+std::to_string(bytes)+", %rsp\n"; break;
-    case Arch::ARM64: m_asm += "\tsub sp, sp, #"+std::to_string(bytes)+"\n"; break;
-    }
-    m_tos -= bytes;
-    m_scope.claim_stkaddr(m_tos);
+    Addr addr = gen_stack_reserve(bytes);
 
     // return ptr to this space
-    gen_mov(Addr::stack(m_tos), regtmp());
-    fcall->_addr = gen_stack_push(regtmp(), dtype_size(dtypeof(fcall)));
+
+    switch (m_arch) {
+    case Arch::x86_64: m_asm += "\tleaq "+addr.repr(m_arch)+", "+regtmp().repr(m_arch)+"\n"; break;
+    case Arch::ARM64: m_asm += "\tadd "+regtmp().repr(m_arch)+", x29, #"+std::to_string(addr.rbp_addr)+"\n"; break;
+    }
+    // gen_mov(addr, regtmp());
+    fcall->_addr = gen_stack_push(regtmp(), dtype_size(type));
 }
 
 void Visitor::gen_builtin_sizeof(uptr<Node> &fcall) {
@@ -250,7 +262,7 @@ void Visitor::gen_builtin_sizeof(uptr<Node> &fcall) {
 
     gen_store_literal(dtype_size(type), regtmp());
     // 8 bytes because sizeof returns 64-bit int integer
-    gen_stack_push(regtmp(), 8);
+    fcall->_addr = gen_stack_push(regtmp(), 8);
 }
 
 void Visitor::gen_builtin_galloc(uptr<Node> &fcall) {
@@ -271,7 +283,7 @@ void Visitor::gen_builtin_galloc(uptr<Node> &fcall) {
 void Visitor::gen_ret(uptr<Node> &ret) {
     gen_expr(ret->ret_val);
     // gen_stack_mov_raw(stkloc(addrof(ret->ret_val)), "%rax");
-    gen_mov(addrof(ret->ret_val), regtmp());
+    gen_mov(addrof(ret->ret_val), regret());
     switch (m_arch) {
     case Arch::x86_64: {
         m_asm += "\n\tmovq %rbp, %rsp\n"
@@ -380,8 +392,16 @@ void Visitor::gen_binop(uptr<Node> &op) {
 
         gen_expr(op->op_l);
         gen_expr(op->op_r);
-        gen_mov(addrof(op->op_l), regtmp());
-        gen_mov(addrof(op->op_r), regtmp(1));
+        switch (m_arch) {
+        case Arch::x86_64: {
+            gen_mov(addrof(op->op_l), Addr::reg("%rax"));
+            gen_mov(addrof(op->op_r), Addr::reg("%rbx"));
+        } break;
+        case Arch::ARM64: {
+            gen_mov(addrof(op->op_l), Addr::reg("x0"));
+            gen_mov(addrof(op->op_r), Addr::reg("x1"));
+        } break;
+        }
         // [cleanup] op_l and op_r are impossible to reference from here on out
         cleanup_dangling(op->op_l);
         cleanup_dangling(op->op_r);
@@ -389,8 +409,17 @@ void Visitor::gen_binop(uptr<Node> &op) {
         // [/cleanup]
         m_asm += math_expr;
 
-        Addr tg = regtmp();
-        if (m_arch == Arch::x86_64 && op->op_type == "%") tg = Addr::reg("%rdx");
+        // move to output result of op
+        Addr tg;
+        switch (m_arch) {
+        case Arch::x86_64: {
+            tg = Addr::reg("%rax");
+            if (op->op_type == "%") tg = Addr::reg("%rdx");
+        } break;
+        case Arch::ARM64: {
+            tg = Addr::reg("x0");
+        } break;
+        }
         gen_mov(tg, op->_addr);
     } else {
         if (op->op_type == "=") {
@@ -441,7 +470,18 @@ void Visitor::gen_unop(uptr<Node> &op) {
 
 void Visitor::gen_getptr(uptr<Node> &op) {
     if (op->unop_obj->type == NType::VAR) {
-        m_asm += "\tleaq "+addrof(op->unop_obj).repr(m_arch)+", %rax\n";
+        switch (m_arch) {
+        case Arch::x86_64: m_asm += "\tleaq "+addrof(op->unop_obj).repr(m_arch)+", %rax\n"; break;
+        case Arch::ARM64: {
+            Addr objaddr = addrof(op->unop_obj);
+            if (objaddr.type == AType::RBP) {
+                m_asm += "\tadd "+regtmp().repr(m_arch)+", x29, #"+std::to_string(objaddr.rbp_addr)+"\n";
+            } else {
+                m_asm += "\tadrp "+regtmp().repr(m_arch)+", "+objaddr.rip_addr+"@PAGE\n";
+                m_asm += "\tadd "+regtmp().repr(m_arch)+", "+regtmp().repr(m_arch)+", "+objaddr.rip_addr+"@PAGEOFF\n";
+            }
+        } break;
+        }
         // [cleanup]
         cleanup_dangling(op->unop_obj);
         tighten_stack();
@@ -615,37 +655,49 @@ void Visitor::gen_mov(Addr src, Addr dst) {
         m_asm += "\tmovq "+src.repr(m_arch)+", "+dst.repr(m_arch)+"\n";
     } break;
     case Arch::ARM64: {
-        if (src.type == AType::RBP) {
-            m_asm += "\tldr "+dst.repr(m_arch)+", "+src.repr(m_arch)+"\n";
-        } else if (dst.type == AType::RBP) {
-            m_asm += "\tstr "+src.repr(m_arch)+", "+dst.repr(m_arch)+"\n";
-        } else if (src.type == AType::RIP) {
-            string reg = dst.repr(m_arch)=="x0"?"x1":"x0";
-            m_asm += "\tadrp "+reg+", "+src.repr(m_arch)+"\n"
-                     "\tldr "+dst.repr(m_arch)+", ["+reg+", :lo12:"+src.repr(m_arch)+"]\n";
-        } else if (dst.type == AType::RIP) {
-            string reg = src.repr(m_arch)=="x0"?"x1":"x0";
-            m_asm += "\tadrp "+reg+", "+dst.repr(m_arch)+"\n"
-                     "\tstr "+src.repr(m_arch)+", ["+reg+", :lo12:"+dst.repr(m_arch)+"]\n";
+        // find free register
+        int free_reg=-1;
+        for (int i=0; i<=1; ++i) {
+            string srcrep = src.is_mem() ? src.repr(m_arch).substr(1,sz(src.repr(m_arch))-2) : src.repr(m_arch);
+            string dstrep = dst.is_mem() ? dst.repr(m_arch).substr(1,sz(dst.repr(m_arch))-2) : dst.repr(m_arch);
+
+            bool conflict0 = src.type==AType::REG && srcrep==regtmp(i).repr(m_arch);
+            bool conflict1 = dst.type==AType::REG && dstrep==regtmp(i).repr(m_arch);
+            if (!conflict0 && !conflict1) {
+                free_reg=i;
+                break;
+            }
+        }
+
+        // perform mov
+        if (src.is_mem() && dst.is_mem()) {
+            // MEM -> MEM
+            gen_mov(src, regtmp(free_reg));
+            gen_mov(regtmp(free_reg), dst);
+        } else if (src.is_mem() && !dst.is_mem()) {
+            // MEM -> REG
+            if (src.type == AType::RIP) {
+                Addr reg = regtmp(free_reg);
+                m_asm += "\tadrp "+reg.repr(m_arch)+", "+src.repr(m_arch)+"@PAGE\n"
+                         "\tldr "+dst.repr(m_arch)+", ["+reg.repr(m_arch)+", "+src.repr(m_arch)+"@PAGEOFF]\n";
+            } else {
+                m_asm += "\tldr "+dst.repr(m_arch)+", "+src.repr(m_arch)+"\n";
+            }
+        } else if (!src.is_mem() && dst.is_mem()) {
+            // REG -> MEM
+            if (dst.type == AType::RIP) {
+                Addr reg = regtmp(free_reg);
+                m_asm += "\tadrp "+reg.repr(m_arch)+", "+dst.repr(m_arch)+"@PAGE\n"
+                         "\tstr "+src.repr(m_arch)+", ["+reg.repr(m_arch)+", "+dst.repr(m_arch)+"@PAGEOFF]\n";
+            } else {
+                m_asm += "\tstr "+src.repr(m_arch)+", "+dst.repr(m_arch)+"\n";
+            }
         } else {
+            // REG -> REG
             m_asm += "\tmov "+dst.repr(m_arch)+", "+src.repr(m_arch)+"\n";
         }
     } break;
     }
-}
-
-Addr Visitor::gen_load_global_addr(Addr addr, int reg_num) {
-    Addr reg = regtmp(reg_num);
-    switch (m_arch) {
-    case Arch::x86_64: {
-        m_asm += "\tleaq "+addr.repr(m_arch)+", "+reg.repr(m_arch)+"\n";
-    } break;
-    case Arch::ARM64: {
-        m_asm += "\tadrp "+reg.repr(m_arch)+", "+addr.repr(m_arch)+"\n"
-                 "\tadd "+reg.repr(m_arch)+", "+reg.repr(m_arch)+", :lo12:"+addr.repr(m_arch)+"\n";
-    } break;
-    }
-    return deref_reg(reg);
 }
 
 void Visitor::gen_store_literal(int val, Addr reg) {

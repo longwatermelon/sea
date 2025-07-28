@@ -1,50 +1,6 @@
-let buffer:int = 0;
-
-fn read_char() -> int {
-    syscall(0,0,&buffer,1);
-    return buffer;
-}
-
-fn print_char(c:int) -> void {
-    buffer=c;
-    syscall(1,1,&buffer,1);
-}
-
-fn read_int() -> int {
-    let ch:int = read_char();
-    let res:int = 0;
-    while (ch!=10 && ch!=32) {
-        res = res*10 + ch-48;
-        ch = read_char();
-    }
-    return res;
-}
-
-fn print_int(x:int) -> void {
-    if (x==0) {
-        print_char(48);
-        return 0;
-    }
-
-    let arr:int* = stalloc(20,int);
-    let ind:int=0;
-    while (x!=0) {
-        let rem:int = x%10;
-        x = x/10;
-        arr[ind] = rem+48;
-        ind = ind+1;
-    }
-
-    while (ind!=0) {
-        ind = ind-1;
-        print_char(arr[ind]);
-    }
-}
-
 fn main() -> int {
     let arr: int* = stalloc(2,int);
     arr[0]=1;
     arr[1]=101;
-    print_int(arr[0]+arr[1]);
-    return 0;
+    return arr[0]+arr[1];
 }
