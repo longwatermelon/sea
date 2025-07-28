@@ -64,7 +64,7 @@ int main(int argc, char* argv[]) {
             ifs.close();
         } else {
             switch (arch) {
-            case Arch::x86_64: system(("as -64 "+out+".s -o "+out+".o").c_str()); break;
+            case Arch::x86_64: system(("as --64 "+out+".s -o "+out+".o").c_str()); break;
             case Arch::ARM64: system(("as "+out+".s -o "+out+".o").c_str()); break;
             }
         }
@@ -98,7 +98,7 @@ int main(int argc, char* argv[]) {
         ofs << entry_asm;
         ofs.close();
         switch (arch) {
-        case Arch::x86_64: system(("as -64 "+build_dir+"/_sea_entry.c.s -o "+build_dir+"/_sea_entry.c.o").c_str()); break;
+        case Arch::x86_64: system(("as --64 "+build_dir+"/_sea_entry.c.s -o "+build_dir+"/_sea_entry.c.o").c_str()); break;
         case Arch::ARM64: system(("as "+build_dir+"/_sea_entry.c.s -o "+build_dir+"/_sea_entry.c.o").c_str()); break;
         }
         outfiles.push_back(build_dir+"/_sea_entry.c");

@@ -92,7 +92,7 @@ struct Addr {
         switch (type) {
         case AType::RBP: return true;
         case AType::RIP: return true;
-        case AType::REG: return reg_name[0]=='[';
+        case AType::REG: return reg_name[0]=='[' || reg_name.back()==')';
         }
     }
 

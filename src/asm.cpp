@@ -471,7 +471,7 @@ void Visitor::gen_unop(uptr<Node> &op) {
 void Visitor::gen_getptr(uptr<Node> &op) {
     if (op->unop_obj->type == NType::VAR) {
         switch (m_arch) {
-        case Arch::x86_64: m_asm += "\tleaq "+addrof(op->unop_obj).repr(m_arch)+", %rax\n"; break;
+        case Arch::x86_64: m_asm += "\tleaq "+addrof(op->unop_obj).repr(m_arch)+", "+regtmp().repr(m_arch)+"\n"; break;
         case Arch::ARM64: {
             Addr objaddr = addrof(op->unop_obj);
             if (objaddr.type == AType::RBP) {
@@ -627,9 +627,13 @@ Addr Visitor::gen_stack_reserve(int nbytes) {
     Addr addr;
     switch (m_arch) {
     case Arch::x86_64: {
-        m_asm += "\tsubq $"+std::to_string(nbytes)+", %rsp\n";
-        m_tos-=nbytes;
-        m_sp-=nbytes;
+        m_tos -= nbytes;
+        // sp must be 16 byte aligned in arm64
+        while (m_tos < m_sp) {
+            m_sp-=16;
+            m_asm += "\tsubq $16, %rsp\n";
+        }
+
         m_scope.claim_stkaddr(m_tos);
         addr = Addr::stack(m_tos);
     } break;
@@ -650,25 +654,30 @@ Addr Visitor::gen_stack_reserve(int nbytes) {
 }
 
 void Visitor::gen_mov(Addr src, Addr dst) {
+    // find free register
+    int free_reg=-1;
+    for (int i=0; i<=1; ++i) {
+        string srcrep = src.is_mem() ? src.repr(m_arch).substr(1,sz(src.repr(m_arch))-2) : src.repr(m_arch);
+        string dstrep = dst.is_mem() ? dst.repr(m_arch).substr(1,sz(dst.repr(m_arch))-2) : dst.repr(m_arch);
+
+        bool conflict0 = src.type==AType::REG && srcrep==regtmp(i).repr(m_arch);
+        bool conflict1 = dst.type==AType::REG && dstrep==regtmp(i).repr(m_arch);
+        if (!conflict0 && !conflict1) {
+            free_reg=i;
+            break;
+        }
+    }
+
     switch (m_arch) {
     case Arch::x86_64: {
-        m_asm += "\tmovq "+src.repr(m_arch)+", "+dst.repr(m_arch)+"\n";
+        if (src.is_mem() && dst.is_mem()) {
+            gen_mov(src, regtmp(free_reg));
+            gen_mov(regtmp(free_reg), dst);
+        } else {
+            m_asm += "\tmovq "+src.repr(m_arch)+", "+dst.repr(m_arch)+"\n";
+        }
     } break;
     case Arch::ARM64: {
-        // find free register
-        int free_reg=-1;
-        for (int i=0; i<=1; ++i) {
-            string srcrep = src.is_mem() ? src.repr(m_arch).substr(1,sz(src.repr(m_arch))-2) : src.repr(m_arch);
-            string dstrep = dst.is_mem() ? dst.repr(m_arch).substr(1,sz(dst.repr(m_arch))-2) : dst.repr(m_arch);
-
-            bool conflict0 = src.type==AType::REG && srcrep==regtmp(i).repr(m_arch);
-            bool conflict1 = dst.type==AType::REG && dstrep==regtmp(i).repr(m_arch);
-            if (!conflict0 && !conflict1) {
-                free_reg=i;
-                break;
-            }
-        }
-
         // perform mov
         if (src.is_mem() && dst.is_mem()) {
             // MEM -> MEM
