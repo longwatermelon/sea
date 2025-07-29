@@ -11,7 +11,7 @@ string Visitor::gen(uptr<Node> &root) {
     } break;
     case Arch::ARM64: {
         m_asm = ".text\n";
-        m_asm_data = ".data\n";
+        m_asm_data = ".data\n.align 3\n";
     } break;
     }
     gen_expr(root);
