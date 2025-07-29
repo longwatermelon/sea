@@ -41,48 +41,6 @@ fn print_int(x:int) -> void {
     }
 }
 
-let n:int;
-let k:int;
-let a:int* = galloc(101,int);
-
-fn solve() -> void {
-    let i:int=1;
-    while (i!=n && k!=0) {
-        while (k!=0 && a[i]!=0) {
-            a[i] = a[i]-1;
-            a[n] = a[n]+1;
-            k = k-1;
-        }
-        i = i+1;
-    }
-
-    print_char(68);
-
-    i=1;
-    while (i!=n) {
-        print_int(a[i]);
-        print_char(32);
-        i=i+1;
-    }
-    print_int(a[n]);
-    print_char(10);
-}
-
 fn main() -> int {
-    let t:int = read_int();
-    while (t!=0) {
-        t=t-1;
-        n=read_int();
-        k=read_int();
-        print_char(65);
-
-        let ind:int=1;
-        while (ind!=n+1) {
-            a[ind] = read_int();
-            ind = ind+1;
-        }
-
-        print_char(67);
-        solve();
-    }
+    print_int(1);
 }

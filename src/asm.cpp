@@ -71,6 +71,14 @@ void Visitor::tighten_stack() {
 
     m_tos+=dif;
 
+    while (m_sp+16 <= m_tos) {
+        m_sp += 16;
+        switch (m_arch) {
+        case Arch::x86_64: m_asm += "\taddq $16, %rsp\n"; break;
+        case Arch::ARM64: m_asm += "\tadd sp, sp, #16\n"; break;
+        }
+    }
+
     // switch (m_arch) {
     // case Arch::x86_64: m_asm += "\t# tighten_stack\n\taddq $"+std::to_string(dif)+", %rsp\n"; break;
     // case Arch::ARM64: m_asm += "\t// tighten_stack\n\tadd sp, sp, #"+std::to_string(dif)+"\n"; break;
@@ -212,7 +220,7 @@ void Visitor::gen_builtin_syscall(uptr<Node> &fcall) {
     vec<string> reg_ord;
     switch (m_arch) {
     case Arch::x86_64: reg_ord = {"%rax", "%rdi", "%rsi", "%rdx"}; break;
-    case Arch::ARM64: reg_ord = {"x8", "x0", "x1", "x2"}; break;
+    case Arch::ARM64: reg_ord = {"x16", "x0", "x1", "x2"}; break;
     }
 
     for (int i=0; i<sz(fcall->fn_args); ++i) {
@@ -351,7 +359,7 @@ void Visitor::gen_binop(uptr<Node> &op) {
         } else if (op->op_type == "/") {
             math_expr = "\tsdiv x0, x0, x1\n";
         } else if (op->op_type == "%") {
-            math_expr = "\tsdiv x2, x0, x1\nmsub x0, x2, x1, x0\n";
+            math_expr = "\tsdiv x2, x0, x1\n\tmsub x0, x2, x1, x0\n";
         } else if (op->op_type == "==") {
             math_expr = "\tcmp x0, x1\n"
                         "\tcset x0, eq\n";
@@ -628,7 +636,7 @@ Addr Visitor::gen_stack_reserve(int nbytes) {
     switch (m_arch) {
     case Arch::x86_64: {
         m_tos -= nbytes;
-        // sp must be 16 byte aligned in arm64
+        // 16 byte alignment
         while (m_tos < m_sp) {
             m_sp-=16;
             m_asm += "\tsubq $16, %rsp\n";
@@ -639,7 +647,7 @@ Addr Visitor::gen_stack_reserve(int nbytes) {
     } break;
     case Arch::ARM64: {
         m_tos -= nbytes;
-        // sp must be 16 byte aligned in arm64
+        // 16 byte alignment (required in arm64)
         while (m_tos < m_sp) {
             m_sp-=16;
             m_asm += "\tsub sp, sp, #16\n";
