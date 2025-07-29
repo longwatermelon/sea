@@ -1,0 +1,5 @@
+fn main() -> int {
+    let arr:int*=stalloc(6,int);
+    let x:int=123;
+    return x;
+}

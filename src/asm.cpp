@@ -212,7 +212,9 @@ void Visitor::gen_fcall(uptr<Node> &fcall) {
     tighten_stack();
     // [/cleanup]
 
-    fcall->_addr = gen_stack_push(regret(), dtype_size(dtypeof(fcall)));
+    if (dtypeof(fcall).base != DTypeBase::VOID) {
+        fcall->_addr = gen_stack_push(regret(), dtype_size(dtypeof(fcall)));
+    }
 }
 
 void Visitor::gen_builtin_syscall(uptr<Node> &fcall) {

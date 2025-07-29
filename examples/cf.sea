@@ -56,8 +56,6 @@ fn solve() -> void {
         i = i+1;
     }
 
-    print_char(68);
-
     i=1;
     while (i!=n) {
         print_int(a[i]);
@@ -74,7 +72,6 @@ fn main() -> int {
         t=t-1;
         n=read_int();
         k=read_int();
-        print_char(65);
 
         let ind:int=1;
         while (ind!=n+1) {
@@ -82,7 +79,6 @@ fn main() -> int {
             ind = ind+1;
         }
 
-        print_char(67);
         solve();
     }
 }

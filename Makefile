@@ -2,7 +2,7 @@ SRC=$(wildcard src/*.cpp)
 OBJS=$(addprefix obj/, $(SRC:.cpp=.o))
 
 CXX=g++
-CXXFLAGS=-std=c++17 -ggdb -Wall -Wextra -pedantic
+CXXFLAGS=-std=c++17 -g -O0 -Wall -Wextra -pedantic
 LDFLAGS=
 
 all:
