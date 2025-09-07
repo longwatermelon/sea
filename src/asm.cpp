@@ -372,6 +372,18 @@ void Visitor::gen_binop(uptr<Node> &op) {
             math_expr = "\torr x0, x0, x1\n";
         } else if (op->op_type == "&&") {
             math_expr = "\tand x0, x0, x1\n";
+        } else if (op->op_type == "<") {
+            math_expr = "\tcmp x0, x1\n"
+                        "\tcset x0, lt\n";
+        } else if (op->op_type == ">") {
+            math_expr = "\tcmp x0, x1\n"
+                        "\tcset x0, gt\n";
+        } else if (op->op_type == "<=") {
+            math_expr = "\tcmp x0, x1\n"
+                        "\tcset x0, le\n";
+        } else if (op->op_type == ">=") {
+            math_expr = "\tcmp x0, x1\n"
+                        "\tcset x0, ge\n";
         } else {
             math=false;
         }
