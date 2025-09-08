@@ -346,6 +346,22 @@ void Visitor::gen_binop(uptr<Node> &op) {
             math_expr = "\tor %rbx, %rax\n";
         } else if (op->op_type == "&&") {
             math_expr = "\tand %rbx, %rax\n";
+        } else if (op->op_type == "<") {
+            math_expr = "\tcmp %rbx, %rax\n"
+                        "\tsetl %al\n"
+                        "\tmovzbl %al, %eax\n";
+        } else if (op->op_type == ">") {
+            math_expr = "\tcmp %rbx, %rax\n"
+                        "\tsetg %al\n"
+                        "\tmovzbl %al, %eax\n";
+        } else if (op->op_type == "<=") {
+            math_expr = "\tcmp %rbx, %rax\n"
+                        "\tsetle %al\n"
+                        "\tmovzbl %al, %eax\n";
+        } else if (op->op_type == ">=") {
+            math_expr = "\tcmp %rbx, %rax\n"
+                        "\tsetge %al\n"
+                        "\tmovzbl %al, %eax\n";
         } else {
             math=false;
         }

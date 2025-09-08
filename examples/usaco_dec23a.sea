@@ -1,0 +1,106 @@
+let buffer:int = 0;
+
+fn read_char() -> int {
+    syscall(0,0,&buffer,1);
+    return buffer;
+}
+
+fn print_char(c:int) -> void {
+    buffer=c;
+    syscall(1,1,&buffer,1);
+}
+
+fn read_int() -> int {
+    let ch:int = read_char();
+    let res:int = 0;
+    while (ch!=10 && ch!=32) {
+        res = res*10 + ch-48;
+        ch = read_char();
+    }
+    return res;
+}
+
+fn print_int(x:int) -> void {
+    if (x==0) {
+        print_char(48);
+        return 0;
+    }
+
+    let arr:int* = stalloc(20,int);
+    let ind:int=0;
+    while (x>0) {
+        let rem:int = x%10;
+        x = x/10;
+        arr[ind] = rem+48;
+        ind = ind+1;
+    }
+
+    while (ind>0) {
+        ind = ind-1;
+        print_char(arr[ind]);
+    }
+}
+
+let n:int;
+let m:int;
+let cows:int* = galloc(200000, int);
+let canes:int* = galloc(200000, int);
+let cane_offsets:int* = galloc(200000, int);
+
+fn solve() -> void {
+    let cane_index:int = 0;
+    while (cane_index < m) {
+        let cane:int* = &canes[cane_index];
+        let offset:int* = &cane_offsets[cane_index];
+
+        let i:int = 0;
+        while (i<n) {
+            if (*cane == 0) {
+                i = n;
+            } else {
+                if (cows[i] > *offset) {
+                    if (cows[i] > *offset+*cane) {
+                        cows[i] = cows[i]+*cane;
+                        *cane = 0;
+                    } else {
+                        let delta:int = cows[i] - *offset;
+                        cows[i] = cows[i]+delta;
+                        *cane = *cane-delta;
+                        *offset = *offset+delta;
+                    }
+                }
+            }
+
+            i = i+1;
+        }
+
+        cane_index = cane_index+1;
+    }
+}
+
+fn main() -> int {
+    n = read_int();
+    m = read_int();
+
+    let i:int = 0;
+    while (i<n) {
+        cows[i] = read_int();
+        i = i+1;
+    }
+
+    i=0;
+    while (i<m) {
+        canes[i] = read_int();
+        cane_offsets[i] = 0;
+        i = i+1;
+    }
+
+    solve();
+
+    i=0;
+    while (i<n) {
+        print_int(cows[i]);
+        print_char(10);
+        i = i+1;
+    }
+}
