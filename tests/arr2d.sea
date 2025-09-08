@@ -1,3 +1,7 @@
+fn f(arr:int*) -> int* {
+    return arr[0];
+}
+
 fn main() -> int {
     let arr:int** = stalloc(2, int*);
     arr[0] = stalloc(3, int);
@@ -7,5 +11,5 @@ fn main() -> int {
     arr[0][2] = 5;
     arr[1][0] = 3;
     arr[1][1] = 9;
-    return arr[0][0] + arr[1][arr[0][0]] + arr[arr[0][1]-arr[1][0]][arr[0][2]-arr[1][0]];
+    return f(arr)[0] + arr[1][arr[0][0]] + arr[arr[0][1]-arr[1][0]][arr[0][2]-arr[1][0]];
 }
