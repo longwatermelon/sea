@@ -1,0 +1,10 @@
+fn main() -> int {
+    let arr:int* = stalloc(4,int);
+    arr[0] = 2;
+    arr[1] = 9;
+    arr[2] = 4;
+    arr[3] = 8;
+
+    let x:int* = arr+3;
+    return *x;
+}
