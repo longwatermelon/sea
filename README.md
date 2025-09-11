@@ -7,7 +7,7 @@
   </span>
 </p>
 
-C compiler spinoff, eventually aiming for a bootstrapping compiler. Generates x86_64 AT&T assembly.
+C compiler spinoff, eventually aiming for a bootstrapping compiler. Generates x86_64 AT&T and Apple ARM64 assembly.
 
 [Claude](https://claude.ai/code)'s contributions:
 * `src/preprocessor.cpp`, `src/preprocessor.h`
