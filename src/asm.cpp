@@ -263,7 +263,8 @@ void Visitor::gen_builtin_stalloc(uptr<Node> &fcall) {
     case Arch::ARM64: m_asm += "\tadd "+regtmp().repr(m_arch)+", x29, #"+std::to_string(addr.rbp_addr)+"\n"; break;
     }
     // gen_mov(addr, regtmp());
-    fcall->_addr = gen_stack_push(regtmp(), dtype_size(type));
+    // push pointer -- size 8.
+    fcall->_addr = gen_stack_push(regtmp(), 8);
 }
 
 void Visitor::gen_builtin_sizeof(uptr<Node> &fcall) {
