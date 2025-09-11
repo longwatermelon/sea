@@ -1,13 +1,13 @@
 let buffer:int = 0;
 
 fn read_char() -> int {
-    syscall(0,0,&buffer,1);
+    syscall(3,0,&buffer,1);
     return buffer;
 }
 
 fn print_char(c:int) -> void {
     buffer=c;
-    syscall(1,1,&buffer,1);
+    syscall(4,1,&buffer,1);
 }
 
 fn read_int() -> int {
