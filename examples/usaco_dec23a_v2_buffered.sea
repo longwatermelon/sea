@@ -1,0 +1,130 @@
+let READ_BUFFER_CAP:int = 1048576;
+let WRITE_BUFFER_CAP:int = 32768;
+
+let input_buffer:byte* = galloc(1048576, byte);
+let input_index:int = 0;
+
+let output_buffer:byte* = galloc(32768, byte);
+let output_index:int = 0;
+
+let n:int;
+let m:int;
+let heights:int* = galloc(200005, int);
+
+fn init_input() -> void {
+    syscall(3,0,input_buffer,READ_BUFFER_CAP);
+}
+
+fn flush_output() -> void {
+    if (output_index>0) {
+        syscall(4,1,output_buffer,output_index);
+        output_index = 0;
+    }
+}
+
+fn read_char() -> int {
+    if (input_index>=READ_BUFFER_CAP) {
+        return 0;
+    }
+    let ch:int = input_buffer[input_index];
+    input_index = input_index+1;
+    return ch;
+}
+
+fn print_char(c:int) -> void {
+    output_buffer[output_index] = c;
+    output_index = output_index+1;
+    if (output_index==WRITE_BUFFER_CAP) {
+        flush_output();
+    }
+}
+
+fn read_int() -> int {
+    let ch:int = read_char();
+    let res:int = 0;
+
+    while (ch==10 || ch==32) {
+        ch = read_char();
+    }
+
+    while (ch!=10 && ch!=32 && ch!=0) {
+        res = res*10 + ch-48;
+        ch = read_char();
+    }
+    return res;
+}
+
+fn print_int(x:int) -> void {
+    if (x==0) {
+        print_char(48);
+        return 0;
+    }
+
+    let arr:int* = stalloc(20,int);
+    let ind:int = 0;
+    while (x>0) {
+        let rem:int = x%10;
+        x = x/10;
+        arr[ind] = rem+48;
+        ind = ind+1;
+    }
+
+    while (ind>0) {
+        ind = ind-1;
+        print_char(arr[ind]);
+    }
+}
+
+fn max(x:int, y:int) -> int {
+    if (x>y) {
+        return x;
+    } else {
+        return y;
+    }
+}
+
+fn min(x:int, y:int) -> int {
+    if (x<y) {
+        return x;
+    } else {
+        return y;
+    }
+}
+
+fn main() -> int {
+    init_input();
+
+    n = read_int();
+    m = read_int();
+
+    let i:int = 0;
+    while (i<n) {
+        heights[i] = read_int();
+        i = i+1;
+    }
+
+    i = 0;
+    while (i<m) {
+        let x:int = read_int();
+        let l:int = 0;
+
+        let j:int = 0;
+        while (j<n && l<x) {
+            let dif:int = max(0, min(heights[j], x)-l);
+            heights[j] = heights[j]+dif;
+            l = l+dif;
+            j = j+1;
+        }
+
+        i = i+1;
+    }
+
+    i = 0;
+    while (i<n) {
+        print_int(heights[i]);
+        print_char(10);
+        i = i+1;
+    }
+
+    flush_output();
+}

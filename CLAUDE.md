@@ -4,83 +4,112 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Sea is a C compiler spinoff that generates cross-platform assembly (x86_64 AT&T and ARM64). It's designed as a bootstrapping compiler project with a clear compilation pipeline: Lexer → Parser → Code Generator → Assembly/Linking. The compiler uses its own C-like syntax (.sea files) rather than standard C.
+Sea is a self-hosting C compiler that generates x86_64 AT&T assembly (Linux) and Apple ARM64 assembly (macOS). The compiler follows a classic pipeline: Lexer → Parser → Code Generator → System Assembler/Linker.
 
-## Build Commands
+## Build and Test Commands
 
-- **Build**: `make` or `make sea` - Builds the compiler executable (`a.out`)
-- **Clean**: `make clean` - Removes build artifacts in `obj/` and `a.out`
-- **Run all tests**: `./run.sh` - Executes the comprehensive test suite
-- **Compile a file**: `./a.out [file.sea]` - Compiles Sea source to executable (`sea.out`)
+- `make` — Compiles the Sea compiler itself into `./a.out` (C++17, debug symbols, no optimization)
+- `make clean` — Removes `obj/` and generated executables
+- `./a.out <file.sea>` — Compiles a Sea source file to `sea.out` executable
+- `./a.out <file.sea> --bundle -o out.s` — Generates standalone assembly file for embedding
+- `./run.sh` — Runs full regression test suite (all `tests/*.sea` files)
+- `./usaco.sh` — Quick test using USACO example with buffered I/O
+- `./ojsubmit.sh <file.sea>` — Wraps assembly in C++ inline asm for online judge submission (outputs to `out.cpp`)
 
-## Testing
+### Test File Format
 
-The test suite (`./run.sh`) automatically discovers all `.sea` files in `tests/` and compares their output against corresponding `.out` files. Each `.out` file contains:
-- `RETURN_CODE:` - Expected exit code
-- `STDOUT:` - Expected output
+Each test consists of `tests/<name>.sea` (source) and `tests/<name>.out` (expectations):
+```
+RETURN_CODE:<number>
+STDOUT:<expected output>
+```
 
-Tests cover both successful compilation/execution and compilation error scenarios.
+The test runner compiles each `.sea` file, executes it, and compares both return code and stdout. For compilation error tests, only stdout is compared.
 
-## Architecture
+## Architecture Overview
 
-### Core Components
+### Compilation Pipeline
 
-1. **Lexer** (`src/lexer.{h,cpp}`) - Tokenizes C source code
-2. **Parser** (`src/parser.{h,cpp}`) - Builds AST using recursive descent parsing
-3. **Code Generator** (`src/asm.{h,cpp}`) - Traverses AST and generates cross-platform assembly
-4. **Preprocessor** (`src/preprocessor.{h,cpp}`) - Handles include directives
-5. **Scope Management** (`src/scope.{h,cpp}`) - Tracks variable scoping and addresses
+1. **Lexer** (`src/lexer.{h,cpp}`): Tokenizes source into `Token` objects (identifiers, operators, literals, keywords)
+2. **Preprocessor** (`src/preprocessor.{h,cpp}`): Handles `#include` directives (authored by Claude)
+3. **Parser** (`src/parser.{h,cpp}`): Recursive descent parser producing AST of `Node` objects
+4. **Code Generator** (`src/asm.{h,cpp}`): Traverses AST via `Visitor` class, emitting platform-specific assembly
+5. **Assembly/Linking**: System `as` and `ld` invoked to produce final executable
 
-### Key Data Structures
+### Core Data Structures
 
-- **Node** (`src/node.h`) - Central AST node structure with union-like design for different node types (VAL, DEF, FN, VAR, RET, BINOP, IF, UNOP, WHILE, STR, CPD)
-- **DType** - Type system supporting INT, VOID with pointer levels
-- **Addr** - Memory addressing system (RBP-relative stack locations or RIP-relative global locations)
-- **Token** (`src/token.h`) - Lexical tokens with type and value information
+- **`Node`** (`src/node.h`): AST node with `NType` enum (CPD, VAL, DEF, FN, VAR, RET, BINOP, IF, UNOP, WHILE, STR, DTYPE). Each node type has specific fields (e.g., `fn_name`, `fn_args`, `fn_body` for functions; `op_l`, `op_r`, `op_type` for binary operators).
 
-### Compilation Flow
+- **`Token`** (`src/token.h`): Lexer output with `TType` (ID, INT, CHAR, STR, keywords, operators)
 
-1. **sea::compile()** - Main compilation entry point
-2. **Lexer** - Tokenizes input source
-3. **Parser** - Builds AST from tokens with recursive descent
-4. **Visitor** - Traverses AST and generates assembly code
-5. **System calls** - Assembles with `as` and links with platform-specific linker (`ld` on Linux, `clang` on macOS)
+- **`DType`** (`src/node.h`): Type system with `DTypeBase` (INT=8 bytes, BYTE=1 byte, VOID) and pointer count. Supports multi-level pointers (`int**`, etc.)
 
-## Adding New Features
+- **`Addr`** (`src/node.h`): Memory address representation (stack-relative `RBP`, global `RIP`, or register `REG`). Platform-aware via `repr(Arch)` method.
 
-### New Node Types
-1. Add enum to `NType` in `src/node.h`
-2. Add corresponding fields to `Node` struct
-3. Implement parsing function in `src/parser.{h,cpp}`
-4. Implement assembly generation in `src/asm.{h,cpp}`
-5. Ensure proper stack management in assembly generation
+- **`Scope`** (`src/scope.{h,cpp}`): Tracks variable/function definitions across nested scopes. Maintains stack address allocation and type information per scope layer.
 
-### Built-in Functions
-Built-ins are handled specially in `gen_fcall()`:
-- `syscall()` - System call interface
-- `stalloc()` - Stack allocation
-- `sizeof()` - Type size calculation
-- `galloc()` - Global allocation
+- **`Visitor`** (`src/asm.{h,cpp}`): Code generator with arch-specific methods (`gen_expr`, `gen_cpd`, `gen_fdef`, `gen_binop`, etc.). Maintains `m_asm` (code section), `m_asm_data` (data section), and `m_scope` for symbol resolution.
 
-## Cross-Platform Support
+### Key Design Patterns
 
-The compiler automatically detects architecture:
-- **Linux**: Generates x86_64 assembly, uses `ld` for linking
-- **macOS**: Generates ARM64 assembly, uses `clang` for linking with proper symbol naming (underscore prefixes)
+- **Platform Abstraction**: `Arch` enum switches between x86_64 and ARM64 throughout codegen. The `Addr::repr()` method and assembly emission functions handle platform differences.
 
-Architecture detection happens at compile time via preprocessor flags (`__APPLE__`, `__linux__`).
+- **Stack Management**: Assembly generation must handle stack allocation AND cleanup inline to prevent "stack holes". Each expression that pushes values must also pop them correctly.
+
+- **Global Allocation**: `galloc(count, type)` allocates arrays in `.data` section. The `m_galloc_id` counter ensures unique labels.
+
+- **Operator Precedence**: Centralized in `util.h:precedence()` map. Parser uses this for correct expression parsing without explicit precedence climbing.
+
+### Module Responsibilities
+
+- `src/main.cpp`: Entry point, argument parsing (`-o` output, `-b` build dir, `--bundle` mode), platform detection, orchestrates compilation
+- `src/sea.{h,cpp}`: Top-level `compile()` function coordinating lexer→parser→codegen→assembly phases
+- `src/util.{h,cpp}`: Type aliases (`vec`, `uptr`, `ll`), utility functions, precedence table, `Arch` enum
+- `src/errors.{h,cpp}`: Error reporting with line numbers
+- `src/args.{h,cpp}`: Command-line argument iterator
+- `src/scope.{h,cpp}`: Symbol table for nested scopes
+- `examples/`: Manual test programs (USACO problems, Codeforces I/O utilities)
+- `tests/`: Automated regression tests with expected output files
+
+## Adding New Language Features
+
+### Adding a New Node Type
+
+1. Add enum variant to `NType` in `src/node.h`
+2. Add relevant fields to the `Node` struct (following naming pattern: `<type>_<field>`)
+3. Implement `Parser::parse_<feature>()` in `src/parser.{h,cpp}` to construct the node
+4. Implement `Visitor::gen_<feature>()` in `src/asm.{h,cpp}` to emit assembly
+5. **Critical**: Ensure assembly generation handles both code emission AND stack cleanup to prevent stack holes
+6. Add test case in `tests/<feature>.sea` with corresponding `.out` file
+
+### Adding a New Data Type
+
+1. Add variant to `DTypeBase` enum in `src/node.h`
+2. Update `is_dtypebase()` and `str2dtypebase()` helper functions
+3. Update `dtype_size()` to return correct byte size
+4. Update parser to recognize the new type keyword
+5. Update codegen to handle loading/storing the new type size
 
 ## Code Style
 
-- Uses custom utility types: `vec<T>`, `uptr<T>`, `string`, `ll`
-- C++17 standard with strict compiler flags (`-Wall -Wextra -pedantic`)
-- Stack-based memory management with careful tracking of stack offsets
-- Assembly generation includes both code generation and stack cleanup
+- Four-space indentation, same-line braces (`void foo() {`)
+- Member fields prefixed with `m_`, classes PascalCase, free functions snake_case
+- `#pragma once` headers, prefer explicit `std::` qualifiers over `using namespace`
+- Concise operator spacing (`m_ind=0;` not `m_ind = 0;`)
+- Use `util.h` type aliases: `vec<T>`, `uptr<T>`, `ll` (long long), `map<K,V>`, `set<T>`, `string`
+- Comments are simple, lowercase, and explain non-obvious design choices or make the code faster to read by separating it into clear steps.
 
-## File Structure
+## Platform Notes
 
-- `src/` - All source code
-- `tests/` - Test cases with expected outputs
-- `examples/` - Example C programs
-- `obj/` - Build artifacts (created by make)
-- `.sea/` - Default build directory for compiled objects
+- Compiler auto-detects architecture via `__APPLE__` (ARM64) or `__linux__` (x86_64) macros
+- Assembly output differs significantly: AT&T syntax for x86_64, Apple ARM64 for macOS
+- System dependencies: `as` (assembler), `ld` (linker) must be available
+- Syscall conventions differ by platform (handled in examples like `cf.sea`)
+
+## Important Quirks
+
+- The compiler generates an executable named `sea.out` by default (not the typical `a.out`)
+- Build artifacts go to `obj/src/` directory structure
+- Test runner expects specific naming: `tests/foo.sea` → compiled to temporary → execution checked
+- The `--bundle` flag generates standalone assembly suitable for inline asm embedding in C++ (used by `ojsubmit.sh`)
+- String literals get unique IDs (`str_id`) and go into `.data` section as labels

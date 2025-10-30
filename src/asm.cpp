@@ -663,10 +663,15 @@ void Visitor::gen_global_var(uptr<Node> &def) {
     }
 
     // gen .data asm
-    switch (def->dtype.base) {
-    case DTypeBase::INT: m_asm_data += name+": .quad "+val+"\n"; break;
-    case DTypeBase::BYTE: m_asm_data += name+": .byte "+val+"\n"; break;
-    case DTypeBase::VOID: assert(false); break;
+    // pointers always use .quad (8 bytes)
+    if (def->dtype.ptrcnt > 0) {
+        m_asm_data += name+": .quad "+val+"\n";
+    } else {
+        switch (def->dtype.base) {
+        case DTypeBase::INT: m_asm_data += name+": .quad "+val+"\n"; break;
+        case DTypeBase::BYTE: m_asm_data += name+": .byte "+val+"\n"; break;
+        case DTypeBase::VOID: assert(false); break;
+        }
     }
 
     m_scope.create_var(name, Addr::global(name), def->dtype);
