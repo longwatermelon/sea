@@ -1,6 +1,7 @@
 #include "util.h"
 #include "token.h"
 #include "node.h"
+#include <optional>
 
 string ttype2str(TType type) {
     switch(type) {
@@ -30,4 +31,10 @@ string ntype2str(NType type) {
         case NType::IF: return "IF";
         default: return "UNKNOWN";
     }
+}
+
+std::optional<Arch> str2arch(const string &str) {
+    if (str=="x86-64") return Arch::x86_64;
+    if (str=="aarch64") return Arch::ARM64;
+    return std::nullopt;
 }

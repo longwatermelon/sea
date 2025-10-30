@@ -12,12 +12,12 @@ let m:int;
 let heights:int* = galloc(200005, int);
 
 fn init_input() -> void {
-    syscall(3,0,input_buffer,READ_BUFFER_CAP);
+    syscall(0,0,input_buffer,READ_BUFFER_CAP);
 }
 
 fn flush_output() -> void {
     if (output_index>0) {
-        syscall(4,1,output_buffer,output_index);
+        syscall(1,1,output_buffer,output_index);
         output_index = 0;
     }
 }

@@ -4,6 +4,7 @@
 #include <fstream>
 #include <algorithm>
 #include <sstream>
+#include <iostream>
 
 int main(int argc, char* argv[]) {
     Args args(argc, argv);
@@ -13,6 +14,7 @@ int main(int argc, char* argv[]) {
     string outfile="sea.out";
     bool bundle=false;
     string build_dir=".sea";
+    std::optional<Arch> arch_override;
 
     // argparsing
     vec<string> nxt = args.next_arg();
@@ -26,6 +28,13 @@ int main(int argc, char* argv[]) {
                 outfile = nxt[1];
             } else if (nxt[0]=="-b") {
                 build_dir = nxt[1];
+            } else if (nxt[0]=="--arch") {
+                arch_override = str2arch(nxt[1]);
+                if (!arch_override.has_value()) {
+                    std::cerr << "error: invalid architecture '" << nxt[1] << "'\n";
+                    std::cerr << "valid options: x86-64, aarch64\n";
+                    return 1;
+                }
             }
         } else { // sz(nxt)==1, nxt[0][0]=='-'
             // flag wout arg
@@ -38,11 +47,15 @@ int main(int argc, char* argv[]) {
     }
 
     Arch arch;
+    if (arch_override.has_value()) {
+        arch = arch_override.value();
+    } else {
 #ifdef __APPLE__
-    arch=Arch::ARM64;
+        arch=Arch::ARM64;
 #elif defined(__linux__)
-    arch=Arch::x86_64;
+        arch=Arch::x86_64;
 #endif
+    }
 
     // compiling
     system(("mkdir -p "+build_dir).c_str());

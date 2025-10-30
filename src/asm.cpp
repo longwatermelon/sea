@@ -816,7 +816,22 @@ DType Visitor::dtypeof(uptr<Node> &node) {
     switch (node->type) {
     case NType::BINOP: return dtypeof(node->op_l);
     case NType::DEF: return node->dtype;
-    case NType::FN: return m_scope.find_fn(node->fn_name).first;
+    case NType::FN: {
+        // handle builtin functions
+        if (node->fn_name == "sizeof") {
+            return DType(DTypeBase::INT, 0);
+        } else if (node->fn_name == "syscall") {
+            return DType(DTypeBase::INT, 0);
+        } else if (node->fn_name == "stalloc") {
+            return DType(DTypeBase::INT, 1);  // pointer
+        } else if (node->fn_name == "galloc") {
+            // returns pointer to the element type
+            DType elem_type = node->fn_args[1]->dtype_type;
+            elem_type.ptrcnt++;
+            return elem_type;
+        }
+        return m_scope.find_fn(node->fn_name).first;
+    }
     case NType::UNOP: {
         DType dtype = dtypeof(node->unop_obj);
         if (node->unop_type == "*") dtype.ptrcnt--;

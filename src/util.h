@@ -6,6 +6,7 @@ using ll=long long;
 #include <memory>
 #include <map>
 #include <set>
+#include <optional>
 template <typename T> using vec=std::vector<T>;
 using string=std::string;
 template <typename T> using uptr=std::unique_ptr<T>;
@@ -50,3 +51,5 @@ enum class Arch {
     x86_64,
     ARM64,
 };
+
+std::optional<Arch> str2arch(const string &str);

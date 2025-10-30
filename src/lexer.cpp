@@ -1,6 +1,7 @@
 #include "lexer.h"
 #include "util.h"
 #include <cctype>
+#include <stdexcept>
 
 Lexer::Lexer(const string &prog) : m_prog(prog) {
     m_ind=0;

@@ -84,10 +84,10 @@ public:
         switch (m_arch) {
         case Arch::x86_64: {
             // %rax -> %al, %rbx -> %bl, %r10 -> %r10b, etc.
-            if (reg[1] == 'r') {
+            if (reg[1] == 'r' && reg.length() > 2 && reg[2] >= 'a' && reg[2] <= 'z') {
                 // %rax, %rbx, etc -> %al, %bl, etc
                 return "%" + reg.substr(2, 1) + "l";
-            } else if (reg[1] >= '0' && reg[1] <= '9') {
+            } else if (reg[1] == 'r' && reg.length() > 2) {
                 // %r10, %r11, etc -> %r10b, %r11b, etc
                 return reg + "b";
             }

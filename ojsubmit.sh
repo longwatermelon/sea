@@ -9,7 +9,7 @@ if [ $# -eq 0 ]; then
 fi
 
 # Compile the sea file to assembly with bundled output
-./a.out "$1" --bundle -o .sea_out.s
+./a.out "$1" --bundle -o .sea_out.s --arch x86-64
 
 # Check if compilation was successful
 if [ $? -ne 0 ]; then
