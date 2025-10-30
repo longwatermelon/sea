@@ -58,6 +58,7 @@ for c_file in tests/*.sea; do
         # Compilation failed - this is a compilation error test, ignore exit code
         if [[ "$actual_stdout" == "$expected_stdout" ]]; then
             echo -e "${GREEN}PASS${NC}"
+            echo "  stdout: '$actual_stdout'"
             passed=$((passed + 1))
         else
             echo -e "${RED}FAIL${NC}"
@@ -69,6 +70,8 @@ for c_file in tests/*.sea; do
         # Compilation succeeded - normal test, compare both return code and stdout
         if [[ "$actual_return_code" == "$expected_return_code" ]] && [[ "$actual_stdout" == "$expected_stdout" ]]; then
             echo -e "${GREEN}PASS${NC}"
+            echo "  exit code: $actual_return_code"
+            echo "  stdout: '$actual_stdout'"
             passed=$((passed + 1))
         else
             echo -e "${RED}FAIL${NC}"
