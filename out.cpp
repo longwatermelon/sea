@@ -1,8 +1,8 @@
 asm(R"(
 .section .data
-READ_BUFFER_CAP: .quad 1048576
+READ_BUFFER_CAP: .quad 5242880
 WRITE_BUFFER_CAP: .quad 32768
-_galloc_array_0: .zero 1048576
+_galloc_array_0: .zero 5242880
 input_buffer: .quad _galloc_array_0
 input_index: .quad 0
 _galloc_array_1: .zero 32768
