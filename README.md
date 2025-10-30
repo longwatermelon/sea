@@ -12,6 +12,7 @@ C compiler spinoff, eventually aiming for a bootstrapping compiler. Generates x8
 [Claude](https://claude.ai/code)'s contributions:
 * `src/preprocessor.cpp`, `src/preprocessor.h`
 * `./run.sh`
+* A lot of sea code (like `examples/usaco_dec23a_v2_buffered.sea`)
 
 ## Program Flow
 
