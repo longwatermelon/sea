@@ -1,0 +1,8 @@
+let g1:byte = 'X';
+let g2:byte = 5b;
+let g3:byte;
+
+fn main() -> int {
+    g3 = g1 + g2;
+    return g3;
+}

@@ -27,6 +27,8 @@ uptr<Node> Parser::parse_atom() {
     // all useful
     case TType::ID: return parse_id();
     case TType::INT: return parse_int();
+    case TType::CHAR: return parse_char();
+    case TType::BYTE_LIT: return parse_byte();
     case TType::STR: return parse_str();
     case TType::LBRACE: return parse_cpd();
     case TType::LPAREN: {
@@ -117,6 +119,20 @@ uptr<Node> Parser::parse_int() {
     uptr<Node> val = mkuq<Node>(NType::VAL, DType(DTypeBase::INT));
     val->val_int = std::stoi(curtok().val.c_str());
     advance(TType::INT);
+    return val;
+}
+
+uptr<Node> Parser::parse_char() {
+    uptr<Node> val = mkuq<Node>(NType::VAL, DType(DTypeBase::BYTE));
+    val->val_byte = (unsigned char)std::stoi(curtok().val.c_str());
+    advance(TType::CHAR);
+    return val;
+}
+
+uptr<Node> Parser::parse_byte() {
+    uptr<Node> val = mkuq<Node>(NType::VAL, DType(DTypeBase::BYTE));
+    val->val_byte = (unsigned char)std::stoi(curtok().val.c_str());
+    advance(TType::BYTE_LIT);
     return val;
 }
 

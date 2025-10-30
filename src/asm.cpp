@@ -185,7 +185,17 @@ void Visitor::gen_fcall(uptr<Node> &fcall) {
     for (int i=0; i<sz(fcall->fn_args); ++i) {
         s += dtype_size(dtypeof(fcall->fn_args[i]));
     }
-    int x = ((-m_tos-s)%16+16)%16;
+
+    // ensure m_sp has enough headroom for arguments (move down in 16-byte increments)
+    while (m_tos - s < m_sp) {
+        m_sp -= 16;
+        switch (m_arch) {
+        case Arch::x86_64: m_asm += "\tsubq $16, %rsp\n"; break;
+        case Arch::ARM64: m_asm += "\tsub sp, sp, #16\n"; break;
+        }
+    }
+    int x = m_tos - m_sp - s;
+    // int x = ((-m_tos-s)%16+16)%16;
     if (x>0) {
         Addr dummy = gen_stack_reserve(x);
     }
@@ -194,7 +204,7 @@ void Visitor::gen_fcall(uptr<Node> &fcall) {
     for (int i=sz(fcall->fn_args)-1; i>=0; --i) {
         auto &arg = fcall->fn_args[i];
         Addr addr = addrof(arg);
-        gen_mov(addr, regtmp());
+        gen_mov(addr, regtmp(), dtype_size(dtypeof(arg)));
 
         Addr tmp = gen_stack_push(regtmp(), dtype_size(dtypeof(arg)));
     }
@@ -231,7 +241,7 @@ void Visitor::gen_builtin_syscall(uptr<Node> &fcall) {
 
     for (int i=0; i<sz(fcall->fn_args); ++i) {
         Addr addr = addrof(fcall->fn_args[i]);
-        gen_mov(addr, Addr::reg(reg_ord[i]));
+        gen_mov(addr, Addr::reg(reg_ord[i]), dtype_size(dtypeof(fcall->fn_args[i])));
     }
 
     // call
@@ -294,7 +304,7 @@ void Visitor::gen_builtin_galloc(uptr<Node> &fcall) {
 void Visitor::gen_ret(uptr<Node> &ret) {
     gen_expr(ret->ret_val);
     // gen_stack_mov_raw(stkloc(addrof(ret->ret_val)), "%rax");
-    gen_mov(addrof(ret->ret_val), regret());
+    gen_mov(addrof(ret->ret_val), regret(), dtype_size(dtypeof(ret->ret_val)));
     switch (m_arch) {
     case Arch::x86_64: {
         m_asm += "\n\tmovq %rbp, %rsp\n"
@@ -313,10 +323,13 @@ void Visitor::gen_val(uptr<Node> &val) {
     switch (val->dtype.base) {
     case DTypeBase::INT: {
         gen_store_literal(val->val_int, regtmp());
-        val->_addr = gen_stack_push(regtmp(), dtype_size(DType(DTypeBase::INT)));
+    } break;
+    case DTypeBase::BYTE: {
+        gen_store_literal(val->val_byte, regtmp());
     } break;
     case DTypeBase::VOID: throw std::runtime_error("[Visitor::gen_val] unreachable void"); break;
     }
+    val->_addr = gen_stack_push(regtmp(), dtype_size(val->dtype));
 }
 
 void Visitor::gen_binop(uptr<Node> &op) {
@@ -433,12 +446,12 @@ void Visitor::gen_binop(uptr<Node> &op) {
         gen_expr(op->op_r);
         switch (m_arch) {
         case Arch::x86_64: {
-            gen_mov(addrof(op->op_l), Addr::reg("%rax"));
-            gen_mov(addrof(op->op_r), Addr::reg("%rbx"));
+            gen_mov(addrof(op->op_l), Addr::reg("%rax"), dtype_size(dtypeof(op->op_l)));
+            gen_mov(addrof(op->op_r), Addr::reg("%rbx"), dtype_size(dtypeof(op->op_r)));
         } break;
         case Arch::ARM64: {
-            gen_mov(addrof(op->op_l), Addr::reg("x0"));
-            gen_mov(addrof(op->op_r), Addr::reg("x1"));
+            gen_mov(addrof(op->op_l), Addr::reg("x0"), dtype_size(dtypeof(op->op_l)));
+            gen_mov(addrof(op->op_r), Addr::reg("x1"), dtype_size(dtypeof(op->op_r)));
         } break;
         }
         // [cleanup] op_l and op_r are impossible to reference from here on out
@@ -459,7 +472,7 @@ void Visitor::gen_binop(uptr<Node> &op) {
             tg = Addr::reg("x0");
         } break;
         }
-        gen_mov(tg, op->_addr);
+        gen_mov(tg, op->_addr, dtype_size(dtypeof(op)));
     } else {
         if (op->op_type == "=") {
             gen_assign(op);
@@ -474,8 +487,8 @@ void Visitor::gen_assign(uptr<Node> &op) {
     if (op->op_l->type == NType::VAR) {
         // move result to var in op_l
         assert(m_scope.var_exists(op->op_l->var_name));
-        gen_mov(addrof(op->op_r), regtmp());
-        gen_mov(regtmp(), m_scope.find_var(op->op_l->var_name));
+        gen_mov(addrof(op->op_r), regtmp(), dtype_size(dtypeof(op->op_l)));
+        gen_mov(regtmp(), m_scope.find_var(op->op_l->var_name), dtype_size(dtypeof(op->op_l)));
         // gen_dubref_mov(addrof(op->op_r).repr(), m_scope.find_var(op->op_l->var_name).repr());
 
         // [cleanup] op_r is useless now that op_l is the handle to op_r's value. op_l is VAR and doesn't need to be cleaned.
@@ -484,10 +497,10 @@ void Visitor::gen_assign(uptr<Node> &op) {
     } else if (op->op_l->type == NType::UNOP && op->op_l->unop_type == "*") {
         // eval dereferenced object, get loc of it
         gen_expr(op->op_l->unop_obj);
-        gen_mov(addrof(op->op_l->unop_obj), regtmp(1));
-        gen_mov(addrof(op->op_r), regtmp());
+        gen_mov(addrof(op->op_l->unop_obj), regtmp(1), 8);  // pointer is always 8 bytes
+        gen_mov(addrof(op->op_r), regtmp(), dtype_size(dtypeof(op->op_l)));
 
-        gen_mov(regtmp(), deref_reg(regtmp(1)));
+        gen_mov(regtmp(), deref_reg(regtmp(1)), dtype_size(dtypeof(op->op_l)));
         // switch (m_arch) {
         // case Arch::x86_64: gen_mov(regtmp(), deref_reg(regtmp(1))"(%rbx)"); break;
         // case Arch::ARM64: gen_mov("x0", "[x1]"); break;
@@ -528,16 +541,16 @@ void Visitor::gen_getptr(uptr<Node> &op) {
     } else if (op->unop_obj->type == NType::UNOP && op->unop_obj->unop_type == "*") {
         // LVALUE DEREF
         gen_expr(op->unop_obj->unop_obj);
-        gen_mov(addrof(op->unop_obj->unop_obj), regtmp());
+        gen_mov(addrof(op->unop_obj->unop_obj), regtmp(), 8);  // pointer is always 8 bytes
     }
 
-    // TODO un-hardcode ptr size of 8
+    // pointers are always 8 bytes
     op->_addr = gen_stack_push(regtmp(), 8);
 }
 
 void Visitor::gen_deref(uptr<Node> &op) {
     gen_expr(op->unop_obj);
-    gen_mov(addrof(op->unop_obj), regtmp());
+    gen_mov(addrof(op->unop_obj), regtmp(), 8);  // pointer is always 8 bytes
     // [cleanup]
     cleanup_dangling(op->unop_obj);
     tighten_stack();
@@ -551,18 +564,18 @@ void Visitor::gen_if(uptr<Node> &node) {
 
     // conditional
     gen_expr(node->if_cond);
-    gen_mov(addrof(node->if_cond), regtmp());
+    gen_mov(addrof(node->if_cond), regtmp(), dtype_size(dtypeof(node->if_cond)));
     // [cleanup] if_cond is dangling now
     cleanup_dangling(node->if_cond);
     tighten_stack();
     // [/cleanup]
     switch (m_arch) {
     case Arch::x86_64: {
-        m_asm += "\ttest %rax, %rax\n"
+        m_asm += "\ttest "+regtmp().repr(m_arch)+", "+regtmp().repr(m_arch)+"\n"
                  "\tjz "+else_label+"\n";
     } break;
     case Arch::ARM64: {
-        m_asm += "\tcbz x0, "+else_label+"\n";
+        m_asm += "\tcbz "+regtmp().repr(m_arch)+", "+else_label+"\n";
     } break;
     }
 
@@ -594,18 +607,18 @@ void Visitor::gen_while(uptr<Node> &node) {
 
     // cond
     gen_expr(node->while_cond);
-    gen_mov(addrof(node->while_cond), regtmp());
+    gen_mov(addrof(node->while_cond), regtmp(), dtype_size(dtypeof(node->while_cond)));
     // [cleanup] while_cond is dangling now
     cleanup_dangling(node->while_cond);
     tighten_stack();
     // [/cleanup]
     switch (m_arch) {
     case Arch::x86_64: {
-        m_asm += "\ttest %rax, %rax\n"
+        m_asm += "\ttest "+regtmp().repr(m_arch)+", "+regtmp().repr(m_arch)+"\n"
                  "\tjz "+end_label+"\n";
     } break;
     case Arch::ARM64: {
-        m_asm += "\tcbz x0, "+end_label+"\n";
+        m_asm += "\tcbz "+regtmp().repr(m_arch)+", "+end_label+"\n";
     } break;
     }
 
@@ -637,12 +650,14 @@ void Visitor::gen_global_var(uptr<Node> &def) {
         } else {
             switch (dtypeof(node).base) {
             case DTypeBase::INT: val = std::to_string(node->val_int); break;
+            case DTypeBase::BYTE: val = std::to_string((int)node->val_byte); break;
             case DTypeBase::VOID: assert(false); break;
             }
         }
     } else {
         switch (def->dtype.base) {
         case DTypeBase::INT: val = "0"; break;
+        case DTypeBase::BYTE: val = "0"; break;
         case DTypeBase::VOID: assert(false); break;
         }
     }
@@ -650,6 +665,7 @@ void Visitor::gen_global_var(uptr<Node> &def) {
     // gen .data asm
     switch (def->dtype.base) {
     case DTypeBase::INT: m_asm_data += name+": .quad "+val+"\n"; break;
+    case DTypeBase::BYTE: m_asm_data += name+": .byte "+val+"\n"; break;
     case DTypeBase::VOID: assert(false); break;
     }
 
@@ -658,7 +674,7 @@ void Visitor::gen_global_var(uptr<Node> &def) {
 
 Addr Visitor::gen_stack_push(Addr src, int nbytes) {
     Addr res = gen_stack_reserve(nbytes);
-    gen_mov(src, res);
+    gen_mov(src, res, nbytes);
     return res;
 }
 
@@ -692,7 +708,7 @@ Addr Visitor::gen_stack_reserve(int nbytes) {
     return addr;
 }
 
-void Visitor::gen_mov(Addr src, Addr dst) {
+void Visitor::gen_mov(Addr src, Addr dst, int nbytes) {
     // find free register
     int free_reg=-1;
     for (int i=0; i<=1; ++i) {
@@ -709,40 +725,49 @@ void Visitor::gen_mov(Addr src, Addr dst) {
 
     switch (m_arch) {
     case Arch::x86_64: {
+        // only byte (1) and int/pointer (8) types
+        string instr = (nbytes == 1) ? "movb" : "movq";
+
         if (src.is_mem() && dst.is_mem()) {
-            gen_mov(src, regtmp(free_reg));
-            gen_mov(regtmp(free_reg), dst);
+            gen_mov(src, regtmp(free_reg), nbytes);
+            gen_mov(regtmp(free_reg), dst, nbytes);
         } else {
-            m_asm += "\tmovq "+src.repr(m_arch)+", "+dst.repr(m_arch)+"\n";
+            string src_repr = src.is_mem() ? src.repr(m_arch) : reg_for_size(src.repr(m_arch), nbytes);
+            string dst_repr = dst.is_mem() ? dst.repr(m_arch) : reg_for_size(dst.repr(m_arch), nbytes);
+            m_asm += "\t"+instr+" "+src_repr+", "+dst_repr+"\n";
         }
     } break;
     case Arch::ARM64: {
+        // only byte (1) and int/pointer (8) types
+        string load_instr = (nbytes == 1) ? "ldrb" : "ldr";
+        string store_instr = (nbytes == 1) ? "strb" : "str";
+
         // perform mov
         if (src.is_mem() && dst.is_mem()) {
             // MEM -> MEM
-            gen_mov(src, regtmp(free_reg));
-            gen_mov(regtmp(free_reg), dst);
+            gen_mov(src, regtmp(free_reg), nbytes);
+            gen_mov(regtmp(free_reg), dst, nbytes);
         } else if (src.is_mem() && !dst.is_mem()) {
             // MEM -> REG
             if (src.type == AType::RIP) {
                 Addr reg = regtmp(free_reg);
                 m_asm += "\tadrp "+reg.repr(m_arch)+", "+src.repr(m_arch)+"@PAGE\n"
-                         "\tldr "+dst.repr(m_arch)+", ["+reg.repr(m_arch)+", "+src.repr(m_arch)+"@PAGEOFF]\n";
+                         "\t"+load_instr+" "+reg_for_size(dst.repr(m_arch), nbytes)+", ["+reg.repr(m_arch)+", "+src.repr(m_arch)+"@PAGEOFF]\n";
             } else {
-                m_asm += "\tldr "+dst.repr(m_arch)+", "+src.repr(m_arch)+"\n";
+                m_asm += "\t"+load_instr+" "+reg_for_size(dst.repr(m_arch), nbytes)+", "+src.repr(m_arch)+"\n";
             }
         } else if (!src.is_mem() && dst.is_mem()) {
             // REG -> MEM
             if (dst.type == AType::RIP) {
                 Addr reg = regtmp(free_reg);
                 m_asm += "\tadrp "+reg.repr(m_arch)+", "+dst.repr(m_arch)+"@PAGE\n"
-                         "\tstr "+src.repr(m_arch)+", ["+reg.repr(m_arch)+", "+dst.repr(m_arch)+"@PAGEOFF]\n";
+                         "\t"+store_instr+" "+reg_for_size(src.repr(m_arch), nbytes)+", ["+reg.repr(m_arch)+", "+dst.repr(m_arch)+"@PAGEOFF]\n";
             } else {
-                m_asm += "\tstr "+src.repr(m_arch)+", "+dst.repr(m_arch)+"\n";
+                m_asm += "\t"+store_instr+" "+reg_for_size(src.repr(m_arch), nbytes)+", "+dst.repr(m_arch)+"\n";
             }
         } else {
             // REG -> REG
-            m_asm += "\tmov "+dst.repr(m_arch)+", "+src.repr(m_arch)+"\n";
+            m_asm += "\tmov "+reg_for_size(dst.repr(m_arch), nbytes)+", "+reg_for_size(src.repr(m_arch), nbytes)+"\n";
         }
     } break;
     }
@@ -752,6 +777,13 @@ void Visitor::gen_store_literal(int val, Addr reg) {
     switch (m_arch) {
     case Arch::x86_64: m_asm += "\tmovq $"+std::to_string(val)+", "+reg.repr(m_arch)+"\n"; break;
     case Arch::ARM64: m_asm += "\tmov "+reg.repr(m_arch)+", #"+std::to_string(val)+"\n"; break;
+    }
+}
+
+void Visitor::gen_store_literal(unsigned char val, Addr reg) {
+    switch (m_arch) {
+    case Arch::x86_64: m_asm += "\tmovb $"+std::to_string((int)val)+", "+reg_for_size(reg.repr(m_arch), 1)+"\n"; break;
+    case Arch::ARM64: m_asm += "\tmov "+reg_for_size(reg.repr(m_arch), 1)+", #"+std::to_string((int)val)+"\n"; break;
     }
 }
 

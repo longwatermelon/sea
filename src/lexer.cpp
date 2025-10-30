@@ -20,11 +20,25 @@ vec<Token> Lexer::tokenize() {
         }
 
         if (std::isdigit(c)) {
-            tokens.push_back(Token(TType::INT, collect_int(), m_line));
+            string num = collect_int();
+            // check for 'b' suffix for byte literals
+            if (m_ind < sz(m_prog) && m_prog[m_ind] == 'b') {
+                advance();
+                // validate byte range (0-255)
+                ll val = std::stoll(num);
+                if (val < 0 || val > 255) {
+                    throw std::runtime_error("Byte literal out of range (0-255): " + num);
+                }
+                tokens.push_back(Token(TType::BYTE_LIT, num, m_line));
+            } else {
+                tokens.push_back(Token(TType::INT, num, m_line));
+            }
         } else if (std::isalpha(c) || c == '_') {
             tokens.push_back(Token(TType::ID, collect_id(), m_line));
         } else if (c == '"') {
             tokens.push_back(Token(TType::STR, collect_str(), m_line));
+        } else if (c == '\'') {
+            tokens.push_back(Token(TType::CHAR, collect_char(), m_line));
         } else if (c == '(') {
             tokens.push_back(Token(TType::LPAREN, "(", m_line));
             advance();
@@ -122,4 +136,43 @@ string Lexer::collect_id() {
         advance();
     }
     return result;
+}
+
+string Lexer::collect_char() {
+    // skip opening quote
+    advance();
+
+    if (m_ind >= sz(m_prog)) {
+        throw std::runtime_error("Unexpected end of file in character literal");
+    }
+
+    char ch = m_prog[m_ind];
+
+    // handle escape sequences
+    if (ch == '\\') {
+        advance();
+        if (m_ind >= sz(m_prog)) {
+            throw std::runtime_error("Unexpected end of file in character literal");
+        }
+        char escape = m_prog[m_ind];
+        switch (escape) {
+            case 'n': ch = '\n'; break;
+            case 't': ch = '\t'; break;
+            case 'r': ch = '\r'; break;
+            case '0': ch = '\0'; break;
+            case '\\': ch = '\\'; break;
+            case '\'': ch = '\''; break;
+            default: ch = escape; break; // unrecognized escape, use literal
+        }
+    }
+
+    advance();
+
+    // check for closing quote
+    if (m_ind >= sz(m_prog) || m_prog[m_ind] != '\'') {
+        throw std::runtime_error("Expected closing quote in character literal");
+    }
+    advance();
+
+    return std::to_string((int)(unsigned char)ch);
 }

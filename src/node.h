@@ -19,6 +19,7 @@ enum class NType {
 
 enum class DTypeBase {
     INT,
+    BYTE,
     VOID,
 };
 
@@ -31,11 +32,12 @@ struct DType {
 };
 
 inline bool is_dtypebase(const string &s) {
-    return s=="int" || s=="void";
+    return s == "int" || s == "void" || s == "byte";
 }
 
 inline DTypeBase str2dtypebase(const string &s) {
     if (s=="int") return DTypeBase::INT;
+    else if (s=="byte") return DTypeBase::BYTE;
     else if (s=="void") return DTypeBase::VOID;
     else throw std::runtime_error("str2dtype failed");
     // TODO better error
@@ -48,6 +50,7 @@ inline int dtype_size(DType type) {
 
     switch (type.base) {
     case DTypeBase::INT: return 8;
+    case DTypeBase::BYTE: return 1;
     case DTypeBase::VOID: return 0;
     }
 }
@@ -114,6 +117,9 @@ struct Node {
 
     // val: int
     int val_int;
+
+    // val: byte
+    unsigned char val_byte;
 
     // def
     uptr<Node> def_obj;

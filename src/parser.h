@@ -17,6 +17,8 @@ private:
     uptr<Node> parse_cpd();
 
     uptr<Node> parse_int();
+    uptr<Node> parse_char();
+    uptr<Node> parse_byte();
     uptr<Node> parse_str();
     uptr<Node> parse_id();
     uptr<Node> parse_dtype();

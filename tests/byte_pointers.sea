@@ -1,0 +1,6 @@
+fn main() -> int {
+    let x:byte = 42b;
+    let ptr:byte* = &x;
+    *ptr = 100b;
+    return x;
+}

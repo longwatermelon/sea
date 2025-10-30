@@ -1,0 +1,10 @@
+fn main() -> int {
+    let a:byte = 20b;
+    let b:byte = 3b;
+
+    let sum:byte = a + b;
+    let diff:byte = a - b;
+    let prod:byte = a * b;
+
+    return sum + diff + prod;
+}

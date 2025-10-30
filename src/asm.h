@@ -41,9 +41,10 @@ public:
     Addr gen_stack_reserve(int nbytes);
     // mov instruction from src to dst
     // uses x3 if src and dst are both memory refs
-    void gen_mov(Addr src, Addr dst);
+    void gen_mov(Addr src, Addr dst, int nbytes);
     // store literal in register
     void gen_store_literal(int val, Addr reg);
+    void gen_store_literal(unsigned char val, Addr reg);
 
     Addr addrof(uptr<Node> &node);
     DType dtypeof(uptr<Node> &node);
@@ -73,6 +74,33 @@ public:
         Addr res = addr;
         res.reg_name = name;
         return res;
+    }
+
+    // convert register name to appropriate size for nbytes
+    // only handles 1-byte and 8-byte types (by design)
+    string reg_for_size(const string& reg, int nbytes) {
+        if (nbytes == 8) return reg;  // already 64-bit
+
+        switch (m_arch) {
+        case Arch::x86_64: {
+            // %rax -> %al, %rbx -> %bl, %r10 -> %r10b, etc.
+            if (reg[1] == 'r') {
+                // %rax, %rbx, etc -> %al, %bl, etc
+                return "%" + reg.substr(2, 1) + "l";
+            } else if (reg[1] >= '0' && reg[1] <= '9') {
+                // %r10, %r11, etc -> %r10b, %r11b, etc
+                return reg + "b";
+            }
+            return reg;
+        }
+        case Arch::ARM64: {
+            // x0 -> w0, x9 -> w9, etc.
+            if (reg.length() > 0 && reg[0] == 'x') {
+                return "w" + reg.substr(1);
+            }
+            return reg;
+        }
+        }
     }
 
 private:

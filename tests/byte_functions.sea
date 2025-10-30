@@ -1,0 +1,10 @@
+fn add_bytes(a:byte, b:byte) -> byte {
+    return a + b;
+}
+
+fn main() -> int {
+    let x:byte = 10b;
+    let y:byte = 25b;
+    let result:byte = add_bytes(x, y);
+    return result;
+}

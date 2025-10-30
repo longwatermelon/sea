@@ -12,6 +12,8 @@ enum class TType {
     SEMI,
     INT,
     STR,
+    CHAR,
+    BYTE_LIT,
     COMMA,
     OP,
     ARROW,
