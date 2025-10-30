@@ -1,0 +1,7 @@
+fn main() -> int {
+    let x:byte = 200b;
+    let y:int = 100;
+
+    let z:byte = x+y-50;
+    return z;
+}
