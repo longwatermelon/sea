@@ -1,4 +1,4 @@
-# Sea Language Specification (Draft)
+# Sea Language Specification
 
 This document describes the Sea language as implemented in this repository: core syntax, types, expressions/statements, built‑ins, preprocessing, how to build/run, and notable limitations.
 
@@ -19,6 +19,7 @@ Sea is a small, C‑inspired language that compiles directly to x86‑64 AT&T or
   - `-b`: build directory for intermediates (default `.sea`)
   - `--bundle`: write a single assembly file to `-o` instead of assembling/linking
   - `--arch`: override host autodetect for codegen target
+  - `--no-entry`: omit `_start` symbol from output assembly
 
 The compiler will assemble and link via system toolchains (`as`/`ld` on Linux x86‑64, `as`/`clang` on Apple ARM64). Ensure these exist on your system.
 
