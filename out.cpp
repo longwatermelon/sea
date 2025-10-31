@@ -1716,11 +1716,4 @@ main:
 	pop %rbp
 	ret
 
-.section .data
-.align 8
-
-.section .bss
-.align 8
-
-.section .text
 )");

@@ -13,6 +13,7 @@ int main(int argc, char* argv[]) {
     vec<string> infiles;
     string outfile="sea.out";
     bool bundle=false;
+    bool no_entry=false;
     string build_dir=".sea";
     std::optional<Arch> arch_override;
 
@@ -28,7 +29,7 @@ int main(int argc, char* argv[]) {
                 outfile = nxt[1];
             } else if (nxt[0]=="-b") {
                 build_dir = nxt[1];
-            } else if (nxt[0]=="--arch") {
+            } else if (nxt[0]=="-arch") {
                 arch_override = str2arch(nxt[1]);
                 if (!arch_override.has_value()) {
                     std::cerr << "error: invalid architecture '" << nxt[1] << "'\n";
@@ -40,6 +41,8 @@ int main(int argc, char* argv[]) {
             // flag wout arg
             if (nxt[0]=="--bundle") {
                 bundle=true;
+            } else if (nxt[0]=="--no-entry") {
+                no_entry=true;
             }
         }
 
@@ -103,18 +106,21 @@ int main(int argc, char* argv[]) {
     if (bundle) {
         // output asm to outfile, don't link
         std::ofstream ofs(outfile);
-        ofs << entry_asm << bundle_out;
+        if (!no_entry) ofs << entry_asm;
+        ofs << bundle_out;
         ofs.close();
     } else {
         // create obj files, link
-        std::ofstream ofs(build_dir+"/_sea_entry.c.s");
-        ofs << entry_asm;
-        ofs.close();
-        switch (arch) {
-        case Arch::x86_64: system(("as --64 "+build_dir+"/_sea_entry.c.s -o "+build_dir+"/_sea_entry.c.o").c_str()); break;
-        case Arch::ARM64: system(("as "+build_dir+"/_sea_entry.c.s -o "+build_dir+"/_sea_entry.c.o").c_str()); break;
+        if (!no_entry) {
+            std::ofstream ofs(build_dir+"/_sea_entry.c.s");
+            ofs << entry_asm;
+            ofs.close();
+            switch (arch) {
+            case Arch::x86_64: system(("as --64 "+build_dir+"/_sea_entry.c.s -o "+build_dir+"/_sea_entry.c.o").c_str()); break;
+            case Arch::ARM64: system(("as "+build_dir+"/_sea_entry.c.s -o "+build_dir+"/_sea_entry.c.o").c_str()); break;
+            }
+            outfiles.push_back(build_dir+"/_sea_entry.c");
         }
-        outfiles.push_back(build_dir+"/_sea_entry.c");
 
         string link_cmd;
         switch (arch) {
