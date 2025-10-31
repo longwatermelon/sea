@@ -34,8 +34,21 @@ for c_file in tests/*.sea; do
     expected_return_code=$(grep "^RETURN_CODE:" "$out_file" | cut -d: -f2)
     expected_stdout=$(grep "^STDOUT:" "$out_file" | cut -d: -f2-)
     
-    # Compile with Sea compiler and capture output
-    compilation_output=$(./a.out "$c_file" 2>&1)
+    # Collect optional dependencies from .deps file (project-root relative paths)
+    deps_file="tests/${base_name}.deps"
+    extra_files=()
+    if [[ -f "$deps_file" ]]; then
+        while IFS= read -r dep || [[ -n "$dep" ]]; do
+            # skip empty lines
+            if [[ -z "$dep" ]]; then
+                continue
+            fi
+            extra_files+=("$dep")
+        done < "$deps_file"
+    fi
+
+    # Compile with Sea compiler and capture output (include deps as inputs)
+    compilation_output=$(./a.out "$c_file" "${extra_files[@]}" 2>&1)
     compilation_succeeded=$?
     
     # The Sea compiler creates an executable named sea.out
