@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Sea is a self-hosting C compiler that generates x86_64 AT&T assembly (Linux) and Apple ARM64 assembly (macOS). The compiler follows a classic pipeline: Lexer → Parser → Code Generator → System Assembler/Linker.
+Sea is a custom compiled language (C-like, with simpler syntax) that generates x86_64 AT&T assembly (Linux) and Apple ARM64 assembly (macOS). The compiler follows a classic pipeline: Lexer → Parser → Code Generator → System Assembler/Linker.
 
 ## Build and Test Commands
 
@@ -24,7 +24,7 @@ RETURN_CODE:<number>
 STDOUT:<expected output>
 ```
 
-The test runner compiles each `.sea` file, executes it, and compares both return code and stdout. For compilation error tests, only stdout is compared.
+The test runner compiles each `.sea` file, executes it, and compares both return code and stdout.
 
 ## Architecture Overview
 
@@ -38,7 +38,7 @@ The test runner compiles each `.sea` file, executes it, and compares both return
 
 ### Core Data Structures
 
-- **`Node`** (`src/node.h`): AST node with `NType` enum (CPD, VAL, DEF, FN, VAR, RET, BINOP, IF, UNOP, WHILE, STR, DTYPE). Each node type has specific fields (e.g., `fn_name`, `fn_args`, `fn_body` for functions; `op_l`, `op_r`, `op_type` for binary operators).
+- **`Node`** (`src/node.h`): AST node with `NType` enum (CPD, VAL, DEF, FN, VAR, RET, BINOP, IF, UNOP, WHILE, STR, DTYPE, etc). Each node type has specific fields (e.g., `fn_name`, `fn_args`, `fn_body` for functions; `op_l`, `op_r`, `op_type` for binary operators).
 
 - **`Token`** (`src/token.h`): Lexer output with `TType` (ID, INT, CHAR, STR, keywords, operators)
 
@@ -94,7 +94,6 @@ The test runner compiles each `.sea` file, executes it, and compares both return
 
 - Four-space indentation, same-line braces (`void foo() {`)
 - Member fields prefixed with `m_`, classes PascalCase, free functions snake_case
-- `#pragma once` headers, prefer explicit `std::` qualifiers over `using namespace`
 - Concise operator spacing (`m_ind=0;` not `m_ind = 0;`)
 - Use `util.h` type aliases: `vec<T>`, `uptr<T>`, `ll` (long long), `map<K,V>`, `set<T>`, `string`
 - Comments are simple, lowercase, and explain non-obvious design choices or make the code faster to read by separating it into clear steps.
