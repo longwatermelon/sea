@@ -98,21 +98,16 @@ fn print_int(x:int) -> void {
 
 fn read_string(dest:byte*, len:int) -> void {
     let idx:int = 0;
-    let done:int = 0;
-    while (idx<len && done==0) {
+    while (idx<len) {
         let ch:int = read_char();
         if (ch==0) {
-            done = 1;
-        } else {
-            let is_space:int = 0;
-            if (ch==10 || ch==13 || ch==32) {
-                is_space = 1;
-            }
-            if (is_space==0) {
-                dest[idx] = ch;
-                idx = idx+1;
-            }
+            break;
         }
+        if (ch==10 || ch==13 || ch==32) {
+            continue;
+        }
+        dest[idx] = ch;
+        idx = idx+1;
     }
 }
 
@@ -193,24 +188,21 @@ fn main() -> int {
     let prod:int = 1;
 
     let pos:int = N-1;
-    while (pos>=0 && prod!=0) {
+    while (pos>=0) {
         let ch:int = str[pos];
         if (ch==79) {
             suffix_O = suffix_O+1;
-        } else {
-            let value:int = suffix_O - K*suffix_M;
-            let bad:int = 0;
-            if (value<K || value<0) {
-                bad = 1;
-            }
-            if (bad==0) {
-                let comb:int = choose(value, K, fact, ifact);
-                prod = (prod*comb)%MOD;
-                suffix_M = suffix_M+1;
-            } else {
-                prod = 0;
-            }
+            pos = pos-1;
+            continue;
         }
+        let value:int = suffix_O - K*suffix_M;
+        if (value<K || value<0) {
+            prod = 0;
+            break;
+        }
+        let comb:int = choose(value, K, fact, ifact);
+        prod = (prod*comb)%MOD;
+        suffix_M = suffix_M+1;
         pos = pos-1;
     }
 

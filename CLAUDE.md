@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Sea is a custom compiled language (C-like, with simpler syntax) that generates x86_64 AT&T assembly (Linux) and Apple ARM64 assembly (macOS). The compiler follows a classic pipeline: Lexer → Parser → Code Generator → System Assembler/Linker.
 
+Read SPEC.md to learn about how the language works.
+
 ## Build and Test Commands
 
 - `make` — Compiles the Sea compiler itself into `./a.out` (C++17, debug symbols, no optimization)

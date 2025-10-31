@@ -8,14 +8,16 @@ string Visitor::gen(uptr<Node> &root) {
     case Arch::x86_64: {
         m_asm = ".section .text\n";
         m_asm_data = ".section .data\n.align 8\n";
+        m_asm_bss = ".section .bss\n.align 8\n";
     } break;
     case Arch::ARM64: {
         m_asm = ".text\n";
         m_asm_data = ".data\n.align 3\n";
+        m_asm_bss = ".bss\n.align 3\n";
     } break;
     }
     gen_expr(root);
-    return m_asm_data + "\n" + m_asm;
+    return m_asm_data + "\n" + m_asm_bss + "\n" + m_asm;
 }
 
 void Visitor::gen_expr(uptr<Node> &expr) {
@@ -297,10 +299,10 @@ void Visitor::gen_builtin_galloc(uptr<Node> &fcall) {
     // align to 8 bytes to ensure proper alignment for subsequent data items
     int aligned_bytes = bytes + ((8 - bytes%8) % 8);
 
-    // alloc space
+    // alloc space in BSS (uninitialized data)
     string label = "_galloc_array_"+std::to_string(m_galloc_id);
     m_galloc_id++;
-    m_asm_data += label+": .zero "+std::to_string(aligned_bytes)+"\n";
+    m_asm_bss += label+": .zero "+std::to_string(aligned_bytes)+"\n";
 
     // return addr
     fcall->_addr = Addr::global(label);
@@ -610,6 +612,11 @@ void Visitor::gen_if(uptr<Node> &node) {
 void Visitor::gen_while(uptr<Node> &node) {
     string start_label = ".L_start_"+std::to_string(node->while_id);
     string end_label = ".L_end_"+std::to_string(node->while_id);
+
+    // save stack state for break/continue
+    m_loop_ids.push_back(node->while_id);
+    m_loop_tos.push_back(m_tos);
+
     m_asm += start_label+":\n";
 
     // cond
@@ -630,8 +637,8 @@ void Visitor::gen_while(uptr<Node> &node) {
     }
 
     // body
-    m_loop_ids.push_back(node->while_id);
     gen_expr(node->while_body);
+    m_loop_tos.pop_back();
     m_loop_ids.pop_back();
 
     // [cleanup] same reasoning as gen_if
@@ -650,6 +657,17 @@ void Visitor::gen_break() {
         throw std::runtime_error("break statement outside of loop");
     }
 
+    // restore stack to loop entry state before jumping
+    int target_tos = m_loop_tos.back();
+    int cur_sp = m_sp;
+    while (cur_sp + 16 <= target_tos) {
+        cur_sp += 16;
+        switch (m_arch) {
+        case Arch::x86_64: m_asm += "\taddq $16, %rsp\n"; break;
+        case Arch::ARM64: m_asm += "\tadd sp, sp, #16\n"; break;
+        }
+    }
+
     switch (m_arch) {
     case Arch::x86_64: m_asm += "\tjmp .L_end_" + std::to_string(m_loop_ids.back()) + "\n"; break;
     case Arch::ARM64: m_asm += "\tb .L_end_" + std::to_string(m_loop_ids.back()) + "\n"; break;
@@ -659,6 +677,17 @@ void Visitor::gen_break() {
 void Visitor::gen_continue() {
     if (empty(m_loop_ids)) {
         throw std::runtime_error("continue statement outside of loop");
+    }
+
+    // restore stack to loop entry state before jumping
+    int target_tos = m_loop_tos.back();
+    int cur_sp = m_sp;
+    while (cur_sp + 16 <= target_tos) {
+        cur_sp += 16;
+        switch (m_arch) {
+        case Arch::x86_64: m_asm += "\taddq $16, %rsp\n"; break;
+        case Arch::ARM64: m_asm += "\tadd sp, sp, #16\n"; break;
+        }
     }
 
     switch (m_arch) {

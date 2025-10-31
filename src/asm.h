@@ -106,7 +106,7 @@ public:
     }
 
 private:
-    string m_asm, m_asm_data;
+    string m_asm, m_asm_data, m_asm_bss;
     // current top of stack, actual stack pointer (capacity)
     int m_tos=0, m_sp=0;
 
@@ -116,6 +116,7 @@ private:
 
     // loop ids stack for break / continue
     vec<int> m_loop_ids;
+    vec<int> m_loop_tos;  // stack depth at start of each loop body
 
     Arch m_arch;
 };

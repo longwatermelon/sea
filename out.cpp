@@ -4,18 +4,21 @@ asm(R"(
 READ_BUFFER_CAP: .quad 5242880
 WRITE_BUFFER_CAP: .quad 32768
 MOD: .quad 1000000007
-_galloc_array_0: .zero 5242880
 input_buffer: .quad _galloc_array_0
 input_index: .quad 0
-_galloc_array_1: .zero 32768
 output_buffer: .quad _galloc_array_1
 output_index: .quad 0
-_galloc_array_2: .zero 1000008
 str: .quad _galloc_array_2
-_galloc_array_3: .zero 8000040
 fact: .quad _galloc_array_3
-_galloc_array_4: .zero 8000040
 ifact: .quad _galloc_array_4
+
+.section .bss
+.align 8
+_galloc_array_0: .zero 5242880
+_galloc_array_1: .zero 32768
+_galloc_array_2: .zero 1000008
+_galloc_array_3: .zero 8000040
+_galloc_array_4: .zero 8000040
 
 .section .text
 .global init_input
@@ -687,22 +690,66 @@ read_string:
 	movq %r10, -16(%rbp)
 	movq -16(%rbp), %r10
 	movq %r10, -8(%rbp)
-	movq $0, %r10
-	subq $16, %rsp
-	movq %r10, -24(%rbp)
-	movq -24(%rbp), %r10
-	movq %r10, -16(%rbp)
-	addq $16, %rsp
 .L_start_12:
-	subq $16, %rsp
 	movq -8(%rbp), %rax
 	movq 24(%rbp), %rbx
 	cmp %rbx, %rax
 	setl %al
 	movzbl %al, %eax
-	movq %rax, -32(%rbp)
+	movq %rax, -16(%rbp)
+	movq -16(%rbp), %r10
+	test %r10, %r10
+	jz .L_end_12
+	call read_char
+	subq $16, %rsp
+	movq %rax, -24(%rbp)
+	movq -24(%rbp), %r10
+	movq %r10, -16(%rbp)
+	addq $16, %rsp
 	subq $16, %rsp
 	movq $0, %r10
+	movq %r10, -32(%rbp)
+	movq -16(%rbp), %rax
+	movq -32(%rbp), %rbx
+	cmp %rbx, %rax
+	sete %al
+	movzbl %al, %eax
+	movq %rax, -24(%rbp)
+	movq -24(%rbp), %r10
+	addq $16, %rsp
+	test %r10, %r10
+	jz .L_else_13
+	jmp .L_end_12
+	jmp .L_end_13
+.L_else_13:
+.L_end_13:
+	subq $16, %rsp
+	subq $16, %rsp
+	movq $10, %r10
+	movq %r10, -48(%rbp)
+	movq -16(%rbp), %rax
+	movq -48(%rbp), %rbx
+	cmp %rbx, %rax
+	sete %al
+	movzbl %al, %eax
+	movq %rax, -40(%rbp)
+	movq $13, %r10
+	subq $16, %rsp
+	movq %r10, -56(%rbp)
+	movq -16(%rbp), %rax
+	movq -56(%rbp), %rbx
+	addq $16, %rsp
+	cmp %rbx, %rax
+	sete %al
+	movzbl %al, %eax
+	movq %rax, -48(%rbp)
+	movq -40(%rbp), %rax
+	movq -48(%rbp), %rbx
+	addq $16, %rsp
+	or %rbx, %rax
+	movq %rax, -32(%rbp)
+	subq $16, %rsp
+	movq $32, %r10
 	movq %r10, -48(%rbp)
 	movq -16(%rbp), %rax
 	movq -48(%rbp), %rbx
@@ -713,138 +760,42 @@ read_string:
 	movq -32(%rbp), %rax
 	movq -40(%rbp), %rbx
 	addq $16, %rsp
-	and %rbx, %rax
+	or %rbx, %rax
 	movq %rax, -24(%rbp)
 	movq -24(%rbp), %r10
 	addq $16, %rsp
 	test %r10, %r10
-	jz .L_end_12
-	subq $16, %rsp
-	call read_char
-	subq $16, %rsp
-	movq %rax, -40(%rbp)
-	movq -40(%rbp), %r10
-	movq %r10, -24(%rbp)
-	addq $16, %rsp
-	subq $16, %rsp
-	movq $0, %r10
-	movq %r10, -48(%rbp)
-	movq -24(%rbp), %rax
-	movq -48(%rbp), %rbx
-	cmp %rbx, %rax
-	sete %al
-	movzbl %al, %eax
-	movq %rax, -40(%rbp)
-	movq -40(%rbp), %r10
-	addq $16, %rsp
-	test %r10, %r10
-	jz .L_else_13
-	movq $1, %r10
-	subq $16, %rsp
-	movq %r10, -40(%rbp)
-	movq -40(%rbp), %r10
-	movq %r10, -16(%rbp)
-	addq $16, %rsp
-	jmp .L_end_13
-.L_else_13:
-	subq $16, %rsp
-	movq $0, %r10
-	movq %r10, -48(%rbp)
-	movq -48(%rbp), %r10
-	movq %r10, -40(%rbp)
-	subq $16, %rsp
-	movq $10, %r10
-	subq $16, %rsp
-	movq %r10, -72(%rbp)
-	movq -24(%rbp), %rax
-	movq -72(%rbp), %rbx
-	addq $16, %rsp
-	cmp %rbx, %rax
-	sete %al
-	movzbl %al, %eax
-	movq %rax, -64(%rbp)
-	subq $16, %rsp
-	movq $13, %r10
-	movq %r10, -80(%rbp)
-	movq -24(%rbp), %rax
-	movq -80(%rbp), %rbx
-	cmp %rbx, %rax
-	sete %al
-	movzbl %al, %eax
-	movq %rax, -72(%rbp)
-	movq -64(%rbp), %rax
-	movq -72(%rbp), %rbx
-	addq $16, %rsp
-	or %rbx, %rax
-	movq %rax, -56(%rbp)
-	movq $32, %r10
-	subq $16, %rsp
-	movq %r10, -72(%rbp)
-	movq -24(%rbp), %rax
-	movq -72(%rbp), %rbx
-	addq $16, %rsp
-	cmp %rbx, %rax
-	sete %al
-	movzbl %al, %eax
-	movq %rax, -64(%rbp)
-	movq -56(%rbp), %rax
-	movq -64(%rbp), %rbx
-	addq $16, %rsp
-	or %rbx, %rax
-	movq %rax, -48(%rbp)
-	movq -48(%rbp), %r10
-	test %r10, %r10
 	jz .L_else_14
-	movq $1, %r10
-	movq %r10, -48(%rbp)
-	movq -48(%rbp), %r10
-	movq %r10, -40(%rbp)
+	jmp .L_start_12
 	jmp .L_end_14
 .L_else_14:
 .L_end_14:
-	movq $0, %r10
-	subq $16, %rsp
-	movq %r10, -56(%rbp)
-	movq -40(%rbp), %rax
-	movq -56(%rbp), %rbx
-	addq $16, %rsp
-	cmp %rbx, %rax
-	sete %al
-	movzbl %al, %eax
-	movq %rax, -48(%rbp)
-	movq -48(%rbp), %r10
-	test %r10, %r10
-	jz .L_else_15
 	subq $16, %rsp
 	movq $1, %r10
-	movq %r10, -64(%rbp)
+	subq $16, %rsp
+	movq %r10, -40(%rbp)
 	movq -8(%rbp), %rax
-	movq -64(%rbp), %rbx
+	movq -40(%rbp), %rbx
+	addq $16, %rsp
 	imulq %rbx, %rax
-	movq %rax, -56(%rbp)
+	movq %rax, -32(%rbp)
 	movq 16(%rbp), %rax
-	movq -56(%rbp), %rbx
-	addq $16, %rsp
+	movq -32(%rbp), %rbx
 	addq %rbx, %rax
-	movq %rax, -48(%rbp)
-	movq -48(%rbp), %r11
-	movq -24(%rbp), %r10
+	movq %rax, -24(%rbp)
+	movq -24(%rbp), %r11
+	movq -16(%rbp), %r10
 	movb %r10b, (%r11)
-	movq $1, %r10
+	addq $16, %rsp
 	subq $16, %rsp
-	movq %r10, -56(%rbp)
+	movq $1, %r10
+	movq %r10, -32(%rbp)
 	movq -8(%rbp), %rax
-	movq -56(%rbp), %rbx
-	addq $16, %rsp
+	movq -32(%rbp), %rbx
 	addq %rbx, %rax
-	movq %rax, -48(%rbp)
-	movq -48(%rbp), %r10
+	movq %rax, -24(%rbp)
+	movq -24(%rbp), %r10
 	movq %r10, -8(%rbp)
-	jmp .L_end_15
-.L_else_15:
-.L_end_15:
-	addq $16, %rsp
-.L_end_13:
 	addq $16, %rsp
 	jmp .L_start_12
 .L_end_12:
@@ -878,16 +829,16 @@ mod_pow:
 	movq %rax, -16(%rbp)
 	movq -16(%rbp), %r10
 	test %r10, %r10
-	jz .L_else_16
+	jz .L_else_15
 	movq -8(%rbp), %rax
 	movq MOD(%rip), %rbx
 	addq %rbx, %rax
 	movq %rax, -16(%rbp)
 	movq -16(%rbp), %r10
 	movq %r10, -8(%rbp)
-	jmp .L_end_16
-.L_else_16:
-.L_end_16:
+	jmp .L_end_15
+.L_else_15:
+.L_end_15:
 	movq $1, %r10
 	subq $16, %rsp
 	movq %r10, -24(%rbp)
@@ -899,7 +850,7 @@ mod_pow:
 	movq %r10, -24(%rbp)
 	movq 24(%rbp), %r10
 	movq %r10, -32(%rbp)
-.L_start_17:
+.L_start_16:
 	subq $16, %rsp
 	movq $0, %r10
 	movq %r10, -48(%rbp)
@@ -912,7 +863,7 @@ mod_pow:
 	movq -40(%rbp), %r10
 	addq $16, %rsp
 	test %r10, %r10
-	jz .L_end_17
+	jz .L_end_16
 	subq $16, %rsp
 	movq $2, %r10
 	subq $16, %rsp
@@ -936,7 +887,7 @@ mod_pow:
 	movq -40(%rbp), %r10
 	addq $16, %rsp
 	test %r10, %r10
-	jz .L_else_18
+	jz .L_else_17
 	subq $16, %rsp
 	movq -16(%rbp), %rax
 	movq -24(%rbp), %rbx
@@ -950,9 +901,9 @@ mod_pow:
 	movq -40(%rbp), %r10
 	movq %r10, -16(%rbp)
 	addq $16, %rsp
-	jmp .L_end_18
-.L_else_18:
-.L_end_18:
+	jmp .L_end_17
+.L_else_17:
+.L_end_17:
 	subq $16, %rsp
 	movq -24(%rbp), %rax
 	movq -24(%rbp), %rbx
@@ -977,8 +928,8 @@ mod_pow:
 	movq -40(%rbp), %r10
 	movq %r10, -32(%rbp)
 	addq $16, %rsp
-	jmp .L_start_17
-.L_end_17:
+	jmp .L_start_16
+.L_end_16:
 	movq -16(%rbp), %rax
 
 	movq %rbp, %rsp
@@ -1021,7 +972,7 @@ choose:
 	movq -8(%rbp), %r10
 	addq $16, %rsp
 	test %r10, %r10
-	jz .L_else_19
+	jz .L_else_18
 	movq $0, %r10
 	subq $16, %rsp
 	movq %r10, -8(%rbp)
@@ -1032,9 +983,9 @@ choose:
 	ret
 
 	addq $16, %rsp
-	jmp .L_end_19
-.L_else_19:
-.L_end_19:
+	jmp .L_end_18
+.L_else_18:
+.L_end_18:
 	subq $16, %rsp
 	subq $16, %rsp
 	movq $8, %r10
@@ -1179,7 +1130,7 @@ main:
 	movq %r10, -80(%rbp)
 	movq -80(%rbp), %r10
 	movq %r10, -72(%rbp)
-.L_start_20:
+.L_start_19:
 	movq -72(%rbp), %rax
 	movq -24(%rbp), %rbx
 	cmp %rbx, %rax
@@ -1188,7 +1139,7 @@ main:
 	movq %rax, -80(%rbp)
 	movq -80(%rbp), %r10
 	test %r10, %r10
-	jz .L_end_20
+	jz .L_end_19
 	subq $16, %rsp
 	movq $1, %r10
 	subq $16, %rsp
@@ -1218,7 +1169,7 @@ main:
 	movb %al, -73(%rbp)
 	movzbq -73(%rbp), %r10
 	test %r10, %r10
-	jz .L_else_21
+	jz .L_else_20
 	movq $1, %r10
 	subq $16, %rsp
 	movq %r10, -88(%rbp)
@@ -1229,8 +1180,8 @@ main:
 	movq %rax, -80(%rbp)
 	movq -80(%rbp), %r10
 	movq %r10, -56(%rbp)
-	jmp .L_end_21
-.L_else_21:
+	jmp .L_end_20
+.L_else_20:
 	movq $1, %r10
 	subq $16, %rsp
 	movq %r10, -88(%rbp)
@@ -1241,7 +1192,7 @@ main:
 	movq %rax, -80(%rbp)
 	movq -80(%rbp), %r10
 	movq %r10, -64(%rbp)
-.L_end_21:
+.L_end_20:
 	movq $1, %r10
 	subq $16, %rsp
 	movq %r10, -88(%rbp)
@@ -1252,8 +1203,8 @@ main:
 	movq %rax, -80(%rbp)
 	movq -80(%rbp), %r10
 	movq %r10, -72(%rbp)
-	jmp .L_start_20
-.L_end_20:
+	jmp .L_start_19
+.L_end_19:
 	subq $16, %rsp
 	movq -8(%rbp), %rax
 	movq -56(%rbp), %rbx
@@ -1268,7 +1219,7 @@ main:
 	movq %rax, -80(%rbp)
 	movq -80(%rbp), %r10
 	test %r10, %r10
-	jz .L_else_22
+	jz .L_else_21
 	movq $0, %r10
 	movq %r10, -80(%rbp)
 	subq $16, %rsp
@@ -1294,9 +1245,9 @@ main:
 	addq $16, %rsp
 	addq $16, %rsp
 	addq $16, %rsp
-	jmp .L_end_22
-.L_else_22:
-.L_end_22:
+	jmp .L_end_21
+.L_else_21:
+.L_end_21:
 	movq -64(%rbp), %r10
 	movq %r10, -80(%rbp)
 	movq $1, %r10
@@ -1327,7 +1278,7 @@ main:
 	movq -104(%rbp), %r10
 	movq %r10, -96(%rbp)
 	addq $16, %rsp
-.L_start_23:
+.L_start_22:
 	subq $16, %rsp
 	movq -96(%rbp), %rax
 	movq -80(%rbp), %rbx
@@ -1338,7 +1289,7 @@ main:
 	movq -104(%rbp), %r10
 	addq $16, %rsp
 	test %r10, %r10
-	jz .L_end_23
+	jz .L_end_22
 	subq $16, %rsp
 	subq $16, %rsp
 	subq $16, %rsp
@@ -1400,8 +1351,8 @@ main:
 	movq -112(%rbp), %r10
 	movq %r10, -96(%rbp)
 	addq $16, %rsp
-	jmp .L_start_23
-.L_end_23:
+	jmp .L_start_22
+.L_end_22:
 	subq $16, %rsp
 	movq $8, %r10
 	subq $16, %rsp
@@ -1455,7 +1406,7 @@ main:
 	movq %r10, (%r11)
 	movq -80(%rbp), %r10
 	movq %r10, -112(%rbp)
-.L_start_24:
+.L_start_23:
 	subq $16, %rsp
 	movq $0, %r10
 	movq %r10, -128(%rbp)
@@ -1468,7 +1419,7 @@ main:
 	movq -120(%rbp), %r10
 	addq $16, %rsp
 	test %r10, %r10
-	jz .L_end_24
+	jz .L_end_23
 	subq $16, %rsp
 	subq $16, %rsp
 	movq $8, %r10
@@ -1534,8 +1485,8 @@ main:
 	movq -128(%rbp), %r10
 	movq %r10, -112(%rbp)
 	addq $16, %rsp
-	jmp .L_start_24
-.L_end_24:
+	jmp .L_start_23
+.L_end_23:
 	subq $16, %rsp
 	movq $0, %r10
 	movq %r10, -128(%rbp)
@@ -1562,36 +1513,20 @@ main:
 	movq -152(%rbp), %r10
 	movq %r10, -144(%rbp)
 	addq $16, %rsp
-.L_start_25:
+.L_start_24:
 	subq $16, %rsp
 	movq $0, %r10
-	subq $16, %rsp
-	movq %r10, -168(%rbp)
+	movq %r10, -160(%rbp)
 	movq -144(%rbp), %rax
-	movq -168(%rbp), %rbx
-	addq $16, %rsp
+	movq -160(%rbp), %rbx
 	cmp %rbx, %rax
 	setge %al
 	movzbl %al, %eax
-	movq %rax, -160(%rbp)
-	subq $16, %rsp
-	movq $0, %r10
-	movq %r10, -176(%rbp)
-	movq -136(%rbp), %rax
-	movq -176(%rbp), %rbx
-	cmp %rbx, %rax
-	setne %al
-	movzbl %al, %eax
-	movq %rax, -168(%rbp)
-	movq -160(%rbp), %rax
-	movq -168(%rbp), %rbx
-	addq $16, %rsp
-	and %rbx, %rax
 	movq %rax, -152(%rbp)
 	movq -152(%rbp), %r10
 	addq $16, %rsp
 	test %r10, %r10
-	jz .L_end_25
+	jz .L_end_24
 	subq $16, %rsp
 	subq $16, %rsp
 	movq $1, %r10
@@ -1622,7 +1557,7 @@ main:
 	movq %rax, -160(%rbp)
 	movq -160(%rbp), %r10
 	test %r10, %r10
-	jz .L_else_26
+	jz .L_else_25
 	movq $1, %r10
 	subq $16, %rsp
 	movq %r10, -168(%rbp)
@@ -1633,8 +1568,21 @@ main:
 	movq %rax, -160(%rbp)
 	movq -160(%rbp), %r10
 	movq %r10, -128(%rbp)
-	jmp .L_end_26
-.L_else_26:
+	movq $1, %r10
+	subq $16, %rsp
+	movq %r10, -168(%rbp)
+	movq -144(%rbp), %rax
+	movq -168(%rbp), %rbx
+	addq $16, %rsp
+	subq %rbx, %rax
+	movq %rax, -160(%rbp)
+	movq -160(%rbp), %r10
+	movq %r10, -144(%rbp)
+	addq $16, %rsp
+	jmp .L_start_24
+	jmp .L_end_25
+.L_else_25:
+.L_end_25:
 	subq $16, %rsp
 	movq -8(%rbp), %rax
 	movq -120(%rbp), %rbx
@@ -1648,55 +1596,42 @@ main:
 	movq %r10, -160(%rbp)
 	addq $16, %rsp
 	subq $16, %rsp
-	movq $0, %r10
-	movq %r10, -176(%rbp)
-	movq -176(%rbp), %r10
-	movq %r10, -168(%rbp)
-	subq $16, %rsp
 	movq -160(%rbp), %rax
 	movq -8(%rbp), %rbx
 	cmp %rbx, %rax
 	setl %al
 	movzbl %al, %eax
-	movq %rax, -184(%rbp)
-	movq $0, %r10
+	movq %rax, -176(%rbp)
 	subq $16, %rsp
-	movq %r10, -200(%rbp)
+	movq $0, %r10
+	movq %r10, -192(%rbp)
 	movq -160(%rbp), %rax
-	movq -200(%rbp), %rbx
-	addq $16, %rsp
+	movq -192(%rbp), %rbx
 	cmp %rbx, %rax
 	setl %al
 	movzbl %al, %eax
-	movq %rax, -192(%rbp)
-	movq -184(%rbp), %rax
-	movq -192(%rbp), %rbx
-	addq $16, %rsp
-	or %rbx, %rax
-	movq %rax, -176(%rbp)
-	movq -176(%rbp), %r10
-	test %r10, %r10
-	jz .L_else_27
-	movq $1, %r10
-	movq %r10, -176(%rbp)
-	movq -176(%rbp), %r10
-	movq %r10, -168(%rbp)
-	jmp .L_end_27
-.L_else_27:
-.L_end_27:
-	movq $0, %r10
-	subq $16, %rsp
-	movq %r10, -184(%rbp)
-	movq -168(%rbp), %rax
+	movq %rax, -184(%rbp)
+	movq -176(%rbp), %rax
 	movq -184(%rbp), %rbx
 	addq $16, %rsp
-	cmp %rbx, %rax
-	sete %al
-	movzbl %al, %eax
-	movq %rax, -176(%rbp)
-	movq -176(%rbp), %r10
+	or %rbx, %rax
+	movq %rax, -168(%rbp)
+	movq -168(%rbp), %r10
+	addq $16, %rsp
 	test %r10, %r10
-	jz .L_else_28
+	jz .L_else_26
+	movq $0, %r10
+	subq $16, %rsp
+	movq %r10, -168(%rbp)
+	movq -168(%rbp), %r10
+	movq %r10, -136(%rbp)
+	addq $16, %rsp
+	addq $16, %rsp
+	jmp .L_end_24
+	jmp .L_end_26
+.L_else_26:
+.L_end_26:
+	subq $16, %rsp
 	subq $16, %rsp
 	subq $16, %rsp
 	movq ifact(%rip), %r10
@@ -1713,11 +1648,11 @@ main:
 	subq $16, %rsp
 	movq %rax, -184(%rbp)
 	movq -184(%rbp), %r10
-	movq %r10, -176(%rbp)
+	movq %r10, -168(%rbp)
 	addq $16, %rsp
 	subq $16, %rsp
 	movq -136(%rbp), %rax
-	movq -176(%rbp), %rbx
+	movq -168(%rbp), %rbx
 	imulq %rbx, %rax
 	movq %rax, -192(%rbp)
 	movq -192(%rbp), %rax
@@ -1738,28 +1673,20 @@ main:
 	movq -184(%rbp), %r10
 	movq %r10, -120(%rbp)
 	addq $16, %rsp
-	jmp .L_end_28
-.L_else_28:
-	movq $0, %r10
-	movq %r10, -176(%rbp)
-	movq -176(%rbp), %r10
-	movq %r10, -136(%rbp)
-.L_end_28:
-	addq $16, %rsp
-.L_end_26:
-	movq $1, %r10
 	subq $16, %rsp
-	movq %r10, -168(%rbp)
+	movq $1, %r10
+	movq %r10, -192(%rbp)
 	movq -144(%rbp), %rax
-	movq -168(%rbp), %rbx
-	addq $16, %rsp
+	movq -192(%rbp), %rbx
 	subq %rbx, %rax
-	movq %rax, -160(%rbp)
-	movq -160(%rbp), %r10
+	movq %rax, -184(%rbp)
+	movq -184(%rbp), %r10
 	movq %r10, -144(%rbp)
 	addq $16, %rsp
-	jmp .L_start_25
-.L_end_25:
+	addq $16, %rsp
+	addq $16, %rsp
+	jmp .L_start_24
+.L_end_24:
 	subq $16, %rsp
 	subq $16, %rsp
 	movq -40(%rbp), %r10
@@ -1790,6 +1717,9 @@ main:
 	ret
 
 .section .data
+.align 8
+
+.section .bss
 .align 8
 
 .section .text
