@@ -1,0 +1,21 @@
+let write_buf:int = 0;
+
+fn write_char(c:int) -> void {
+    write_buf = c;
+    syscall(4, 1, &write_buf, 1);
+}
+
+fn main() -> int {
+    let i:int=0;
+    while (i<20) {
+        i=i+1;
+        if (i>10) {
+            break;
+        }
+        if (i%2==0) {
+            continue;
+        }
+        write_char(i+48);
+    }
+    return 0;
+}

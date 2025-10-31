@@ -32,6 +32,8 @@ public:
 
     void gen_if(uptr<Node> &node);
     void gen_while(uptr<Node> &node);
+    void gen_break();
+    void gen_continue();
 
     void gen_global_var(uptr<Node> &def);
 
@@ -111,6 +113,9 @@ private:
     Scope m_scope;
 
     static ll m_galloc_id;
+
+    // loop ids stack for break / continue
+    vec<int> m_loop_ids;
 
     Arch m_arch;
 };

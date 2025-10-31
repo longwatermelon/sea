@@ -54,6 +54,8 @@ void Visitor::gen_expr(uptr<Node> &expr) {
     // TODO
     case NType::STR: break;
     case NType::DTYPE: break;
+    case NType::BREAK: return gen_break();
+    case NType::CONT: return gen_continue();
     }
 }
 
@@ -628,7 +630,10 @@ void Visitor::gen_while(uptr<Node> &node) {
     }
 
     // body
+    m_loop_ids.push_back(node->while_id);
     gen_expr(node->while_body);
+    m_loop_ids.pop_back();
+
     // [cleanup] same reasoning as gen_if
     cleanup_dangling(node->while_body);
     tighten_stack();
@@ -638,6 +643,28 @@ void Visitor::gen_while(uptr<Node> &node) {
     case Arch::ARM64: m_asm += "\tb "+start_label+"\n"; break;
     }
     m_asm += end_label+":\n";
+}
+
+void Visitor::gen_break() {
+    if (empty(m_loop_ids)) {
+        throw std::runtime_error("break statement outside of loop");
+    }
+
+    switch (m_arch) {
+    case Arch::x86_64: m_asm += "\tjmp .L_end_" + std::to_string(m_loop_ids.back()) + "\n"; break;
+    case Arch::ARM64: m_asm += "\tb .L_end_" + std::to_string(m_loop_ids.back()) + "\n"; break;
+    }
+}
+
+void Visitor::gen_continue() {
+    if (empty(m_loop_ids)) {
+        throw std::runtime_error("continue statement outside of loop");
+    }
+
+    switch (m_arch) {
+    case Arch::x86_64: m_asm += "\tjmp .L_start_" + std::to_string(m_loop_ids.back()) + "\n"; break;
+    case Arch::ARM64: m_asm += "\tb .L_start_" + std::to_string(m_loop_ids.back()) + "\n"; break;
+    }
 }
 
 void Visitor::gen_global_var(uptr<Node> &def) {
@@ -813,6 +840,8 @@ Addr Visitor::addrof(uptr<Node> &node) {
     case NType::IF:
     case NType::WHILE:
     case NType::DTYPE:
+    case NType::BREAK:
+    case NType::CONT:
         break;
     }
 
@@ -853,6 +882,8 @@ DType Visitor::dtypeof(uptr<Node> &node) {
     case NType::RET:
     case NType::IF:
     case NType::CPD:
+    case NType::BREAK:
+    case NType::CONT:
         break;
     }
 

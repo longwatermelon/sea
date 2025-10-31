@@ -15,6 +15,8 @@ enum class NType {
     WHILE, // while loop
     STR, // string literal
     DTYPE, // dtype, needed for recognizing "int*" as an expression
+    BREAK, // break
+    CONT, // continue
 };
 
 enum class DTypeBase {

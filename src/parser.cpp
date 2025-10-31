@@ -166,6 +166,10 @@ uptr<Node> Parser::parse_id() {
         return parse_fdef();
     } else if (name == "let") {
         return parse_vardef();
+    } else if (name == "break") {
+        return mkuq<Node>(NType::BREAK);
+    } else if (name == "continue") {
+        return mkuq<Node>(NType::CONT);
     }
 
     // reference to some program-defined symbol
