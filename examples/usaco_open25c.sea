@@ -1,0 +1,102 @@
+#include "../lib/io.h"
+#include "../lib/quicksort.h"
+#include "../lib/util.h"
+
+let MAX_N:int = 200005;
+let MOD:int = 1000000007;
+let INF:int = 1000000000000000000;
+
+let c:int* = galloc(200005, int);
+
+fn main() -> int {
+    init_input();
+
+    let n:int = read_int();
+    let d:int = read_int();
+    let a:int = read_int();
+    let b:int = read_int();
+
+    let i:int = 0;
+    while (i<n) {
+        c[i] = read_int();
+        i = i+1;
+    }
+
+    quicksort(c, n);
+
+    let l:int = n - a;
+    let r:int = n - b - 1;
+
+    let ql:int = r;
+    let qr:int = r;
+    while (ql>l && c[ql-1]==c[r]) { ql = ql-1; }
+    while (qr+1<n && c[qr+1]==c[r]) { qr = qr+1; }
+
+    let k:int = 0;
+    let p:int = 0;
+    let num:int = c[r];
+
+    while (1==1) {
+        let block_sz:int = qr - ql + 1;
+        let tail_cnt:int = r - ql + 1;
+
+        let numx:int = INF;
+        if (qr+1<n) {
+            let diff:int = c[qr+1] - num;
+            let need:int = diff*block_sz - p;
+            numx = ceil_div(need, tail_cnt);
+        }
+
+        let numy:int = INF;
+        if (ql>l && r!=qr) {
+            let numer:int = block_sz*(num - (c[ql-1] + k)) + p;
+            let denom:int = qr - r;
+            numy = numer / denom;
+        }
+
+        let step:int = min(numx, numy);
+        if (k + step > d) { break; }
+
+        let x:int = step*tail_cnt + p;
+        num = num + x / block_sz;
+        p = x % block_sz;
+        k = k + step;
+
+        while (qr+1<n && c[qr+1]==num) { qr = qr+1; }
+        while (ql>l && c[ql-1]+k==num) { ql = ql-1; }
+    }
+
+    let block_sz2:int = qr - ql + 1;
+    let tail_cnt2:int = r - ql + 1;
+    let rem:int = d - k;
+    let x2:int = (rem*tail_cnt2 + p) / block_sz2;
+    let y2:int = (rem*tail_cnt2 + p) - x2*block_sz2;
+    num = num + x2;
+    p = y2;
+    k = d;
+
+    i = l;
+    while (i<ql) {
+        c[i] = c[i] + d;
+        i = i+1;
+    }
+
+    i = ql;
+    while (i<=qr) {
+        if (qr - i < p) { c[i] = num + 1; }
+        else { c[i] = num; }
+        i = i+1;
+    }
+
+    let ans:int = 0;
+    i = 0;
+    while (i<n) {
+        let v:int = c[i] % MOD;
+        ans = (ans + (v*v)%MOD) % MOD;
+        i = i+1;
+    }
+
+    print_int(ans);
+    print_char(10);
+    flush_output();
+}

@@ -1,0 +1,107 @@
+let READ_BUFFER_CAP:int = 5242880;
+let WRITE_BUFFER_CAP:int = 32768;
+
+let input_buffer:byte* = galloc(5242880, byte);
+let input_index:int = 0;
+
+let output_buffer:byte* = galloc(32768, byte);
+let output_index:int = 0;
+
+fn init_input() -> void {
+    syscall(3,0,input_buffer,READ_BUFFER_CAP);
+}
+
+fn flush_output() -> void {
+    if (output_index>0) {
+        syscall(4,1,output_buffer,output_index);
+        output_index = 0;
+    }
+}
+
+fn read_char() -> int {
+    if (input_index>=READ_BUFFER_CAP) {
+        return 0;
+    }
+    let ch:int = input_buffer[input_index];
+    input_index = input_index+1;
+    return ch;
+}
+
+fn print_char(c:int) -> void {
+    output_buffer[output_index] = c;
+    output_index = output_index+1;
+    if (output_index==WRITE_BUFFER_CAP) {
+        flush_output();
+    }
+}
+
+fn read_int() -> int {
+    let ch:int = read_char();
+    let res:int = 0;
+    let neg:int = 0;
+
+    while (ch==10 || ch==32 || ch==13) {
+        ch = read_char();
+    }
+
+    if (ch==45) {
+        neg = 1;
+        ch = read_char();
+    }
+
+    while (ch!=10 && ch!=32 && ch!=13 && ch!=0) {
+        res = res*10 + ch-48;
+        ch = read_char();
+    }
+
+    if (neg==1) {
+        return 0-res;
+    }
+    return res;
+}
+
+fn print_int(x:int) -> void {
+    if (x==0) {
+        print_char(48);
+        return 0;
+    }
+
+    let neg:int = 0;
+    if (x<0) {
+        neg = 1;
+        x = 0-x;
+    }
+
+    let arr:int* = stalloc(20,int);
+    let ind:int = 0;
+    while (x>0) {
+        let rem:int = x%10;
+        x = x/10;
+        arr[ind] = rem+48;
+        ind = ind+1;
+    }
+
+    if (neg==1) {
+        print_char(45);
+    }
+
+    while (ind>0) {
+        ind = ind-1;
+        print_char(arr[ind]);
+    }
+}
+
+fn read_string(dest:byte*, len:int) -> void {
+    let idx:int = 0;
+    while (idx<len) {
+        let ch:int = read_char();
+        if (ch==0) {
+            break;
+        }
+        if (ch==10 || ch==13 || ch==32) {
+            continue;
+        }
+        dest[idx] = ch;
+        idx = idx+1;
+    }
+}

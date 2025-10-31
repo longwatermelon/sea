@@ -117,7 +117,7 @@ uptr<Node> Parser::parse_cpd() {
 
 uptr<Node> Parser::parse_int() {
     uptr<Node> val = mkuq<Node>(NType::VAL, DType(DTypeBase::INT));
-    val->val_int = std::stoi(curtok().val.c_str());
+    val->val_int = std::stoll(curtok().val.c_str());
     advance(TType::INT);
     return val;
 }

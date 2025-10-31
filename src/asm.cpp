@@ -267,9 +267,9 @@ void Visitor::gen_builtin_syscall(uptr<Node> &fcall) {
 
 void Visitor::gen_builtin_stalloc(uptr<Node> &fcall) {
     // require 2 argument: a VAL integer (# elements), and a DTYPE type (element types).
-    int cnt = fcall->fn_args[0]->val_int;
+    ll cnt = fcall->fn_args[0]->val_int;
     DType type = fcall->fn_args[1]->dtype_type;
-    int bytes = cnt * dtype_size(type);
+    int bytes = (int)(cnt * dtype_size(type));
 
     // alloc space
     Addr addr = gen_stack_reserve(bytes);
@@ -289,16 +289,16 @@ void Visitor::gen_builtin_sizeof(uptr<Node> &fcall) {
     // require 1 argument: a type.
     DType type = fcall->fn_args[0]->dtype_type;
 
-    gen_store_literal(dtype_size(type), regtmp());
+    gen_store_literal((ll)dtype_size(type), regtmp());
     // 8 bytes because sizeof returns 64-bit int integer
     fcall->_addr = gen_stack_push(regtmp(), 8);
 }
 
 void Visitor::gen_builtin_galloc(uptr<Node> &fcall) {
     // require 2 arguments: VAL int (# elements), DTYPE (element type).
-    int cnt = fcall->fn_args[0]->val_int;
+    ll cnt = fcall->fn_args[0]->val_int;
     DType type = fcall->fn_args[1]->dtype_type;
-    int bytes = cnt * dtype_size(type);
+    int bytes = (int)(cnt * dtype_size(type));
 
     // align to 8 bytes to ensure proper alignment for subsequent data items
     int aligned_bytes = bytes + ((8 - bytes%8) % 8);
@@ -845,7 +845,7 @@ void Visitor::gen_mov(Addr src, Addr dst, int nbytes) {
     }
 }
 
-void Visitor::gen_store_literal(int val, Addr reg) {
+void Visitor::gen_store_literal(ll val, Addr reg) {
     switch (m_arch) {
     case Arch::x86_64: m_asm += "\tmovq $"+std::to_string(val)+", "+reg.repr(m_arch)+"\n"; break;
     case Arch::ARM64: m_asm += "\tmov "+reg.repr(m_arch)+", #"+std::to_string(val)+"\n"; break;

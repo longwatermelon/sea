@@ -44,8 +44,8 @@ public:
     // mov instruction from src to dst
     // uses x3 if src and dst are both memory refs
     void gen_mov(Addr src, Addr dst, int nbytes);
-    // store literal in register
-    void gen_store_literal(int val, Addr reg);
+    // store literal in register (64-bit integer)
+    void gen_store_literal(ll val, Addr reg);
     void gen_store_literal(unsigned char val, Addr reg);
 
     Addr addrof(uptr<Node> &node);

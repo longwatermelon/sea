@@ -1,3 +1,5 @@
+#include "util.h"
+
 let HEAP_CAP:int = 16777216;
 let HEAP:byte* = galloc(16777216, byte);
 let heap_top:int = 0;
@@ -8,11 +10,6 @@ let HDR:int = 8;
 fn align_up(x:int, a:int) -> int {
     let y:int = x + a - 1;
     return y - (y % a);
-}
-
-fn min(a:int, b:int) -> int {
-    if (a<b) { return a; }
-    else { return b; }
 }
 
 fn memcpy(dst:byte*, src:byte*, n:int) -> void {

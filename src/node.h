@@ -117,8 +117,8 @@ struct Node {
     // cpd
     vec<uptr<Node>> cpd_nodes;
 
-    // val: int
-    int val_int;
+    // val: int (64-bit)
+    ll val_int;
 
     // val: byte
     unsigned char val_byte;
