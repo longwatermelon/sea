@@ -1,3 +1,3 @@
 #!/bin/sh
 ./a.out examples/cf.sea
-./sea.out < test
+./sea.out < examples/tc/testcf

@@ -7,7 +7,7 @@ string Visitor::gen(uptr<Node> &root) {
     switch (m_arch) {
     case Arch::x86_64: {
         m_asm = ".section .text\n";
-        m_asm_data = ".section .data\n";
+        m_asm_data = ".section .data\n.align 8\n";
     } break;
     case Arch::ARM64: {
         m_asm = ".text\n";
@@ -292,10 +292,13 @@ void Visitor::gen_builtin_galloc(uptr<Node> &fcall) {
     DType type = fcall->fn_args[1]->dtype_type;
     int bytes = cnt * dtype_size(type);
 
+    // align to 8 bytes to ensure proper alignment for subsequent data items
+    int aligned_bytes = bytes + ((8 - bytes%8) % 8);
+
     // alloc space
     string label = "_galloc_array_"+std::to_string(m_galloc_id);
     m_galloc_id++;
-    m_asm_data += label+": .zero "+std::to_string(bytes)+"\n";
+    m_asm_data += label+": .zero "+std::to_string(aligned_bytes)+"\n";
 
     // return addr
     fcall->_addr = Addr::global(label);
@@ -487,7 +490,8 @@ void Visitor::gen_assign(uptr<Node> &op) {
     if (op->op_l->type == NType::VAR) {
         // move result to var in op_l
         assert(m_scope.var_exists(op->op_l->var_name));
-        gen_mov(addrof(op->op_r), regtmp(), dtype_size(dtypeof(op->op_l)));
+        // load with source size, store with dest size for automatic widening/narrowing
+        gen_mov(addrof(op->op_r), regtmp(), dtype_size(dtypeof(op->op_r)));
         gen_mov(regtmp(), m_scope.find_var(op->op_l->var_name), dtype_size(dtypeof(op->op_l)));
         // gen_dubref_mov(addrof(op->op_r).repr(), m_scope.find_var(op->op_l->var_name).repr());
 
@@ -498,7 +502,8 @@ void Visitor::gen_assign(uptr<Node> &op) {
         // eval dereferenced object, get loc of it
         gen_expr(op->op_l->unop_obj);
         gen_mov(addrof(op->op_l->unop_obj), regtmp(1), 8);  // pointer is always 8 bytes
-        gen_mov(addrof(op->op_r), regtmp(), dtype_size(dtypeof(op->op_l)));
+        // load with source size, store with dest size for automatic widening/narrowing
+        gen_mov(addrof(op->op_r), regtmp(), dtype_size(dtypeof(op->op_r)));
 
         gen_mov(regtmp(), deref_reg(regtmp(1)), dtype_size(dtypeof(op->op_l)));
         // switch (m_arch) {
@@ -731,12 +736,14 @@ void Visitor::gen_mov(Addr src, Addr dst, int nbytes) {
     switch (m_arch) {
     case Arch::x86_64: {
         // only byte (1) and int/pointer (8) types
-        string instr = (nbytes == 1) ? "movb" : "movq";
-
         if (src.is_mem() && dst.is_mem()) {
             gen_mov(src, regtmp(free_reg), nbytes);
             gen_mov(regtmp(free_reg), dst, nbytes);
+        } else if (src.is_mem() && !dst.is_mem() && nbytes == 1) {
+            // byte load: use movzbq to zero-extend (movb doesn't zero-extend on x86-64)
+            m_asm += "\tmovzbq "+src.repr(m_arch)+", "+dst.repr(m_arch)+"\n";
         } else {
+            string instr = (nbytes == 1) ? "movb" : "movq";
             string src_repr = src.is_mem() ? src.repr(m_arch) : reg_for_size(src.repr(m_arch), nbytes);
             string dst_repr = dst.is_mem() ? dst.repr(m_arch) : reg_for_size(dst.repr(m_arch), nbytes);
             m_asm += "\t"+instr+" "+src_repr+", "+dst_repr+"\n";
