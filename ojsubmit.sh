@@ -1,15 +1,11 @@
-#!/bin/bash
+#!/bin/sh
 
 # ojsubmit.sh - Generate C++ file with inline assembly for online judge submission
-# Usage: ./ojsubmit.sh <path-to-sea-file>
 
-if [ $# -eq 0 ]; then
-    echo "Usage: $0 <path-to-sea-file>"
-    exit 1
-fi
+FILE=examples/usaco_open25a.sea
 
 # Compile the sea file to assembly with bundled output
-./a.out "$1" --bundle -o .sea_out.s -arch "x86-64" --no-entry
+./a.out "$FILE" --bundle -o .sea_out.s -arch "aarch64" --no-entry
 
 # Check if compilation was successful
 if [ $? -ne 0 ]; then
