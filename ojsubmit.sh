@@ -5,7 +5,7 @@
 FILE=examples/usaco_open25a.sea
 
 # Compile the sea file to assembly with bundled output
-./a.out "$FILE" --bundle -o .sea_out.s -arch "aarch64" --no-entry
+./a.out "$FILE" --bundle -o .sea_out.s -arch "x86-64" --no-entry
 
 # Check if compilation was successful
 if [ $? -ne 0 ]; then

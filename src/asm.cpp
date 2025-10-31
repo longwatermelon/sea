@@ -200,8 +200,9 @@ void Visitor::gen_fcall(uptr<Node> &fcall) {
     }
     int x = m_tos - m_sp - s;
     // int x = ((-m_tos-s)%16+16)%16;
+    Addr pad;
     if (x>0) {
-        Addr dummy = gen_stack_reserve(x);
+        pad = gen_stack_reserve(x);
     }
 
     // push args from their cur locations to the front
@@ -223,6 +224,9 @@ void Visitor::gen_fcall(uptr<Node> &fcall) {
     // IMPORTANT: none of these ops should touch regtmp.
     m_scope.del_stkaddr_top_n(sz(fcall->fn_args));
     for (auto &arg : fcall->fn_args) cleanup_dangling(arg);
+    if (x>0) {
+        m_scope.del_stkaddr(pad.rbp_addr);
+    }
     tighten_stack();
     // [/cleanup]
 
