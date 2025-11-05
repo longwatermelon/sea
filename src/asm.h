@@ -25,6 +25,7 @@ public:
 
     void gen_binop(uptr<Node> &op);
     void gen_assign(uptr<Node> &op);
+    void gen_memb_access(uptr<Node> &op);
 
     void gen_unop(uptr<Node> &op);
     void gen_getptr(uptr<Node> &op);
@@ -111,6 +112,7 @@ private:
     int m_tos=0, m_sp=0;
 
     Scope m_scope;
+    vec<Node*> m_sdefs;
 
     static ll m_galloc_id;
 

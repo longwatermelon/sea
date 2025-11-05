@@ -153,7 +153,7 @@ uptr<Node> Parser::parse_id() {
     string name = curtok().val;
 
     // type
-    if (is_dtypebase(name)) {
+    if (is_dtypebase(name, m_sdefs)) {
         return parse_dtype();
     }
 
@@ -175,6 +175,8 @@ uptr<Node> Parser::parse_id() {
         return mkuq<Node>(NType::BREAK);
     } else if (name == "continue") {
         return mkuq<Node>(NType::CONT);
+    } else if (name == "struct") {
+        return parse_sdef();
     }
 
     // must be reference to some program-defined symbol at this point
@@ -214,7 +216,10 @@ uptr<Node> Parser::parse_id() {
 uptr<Node> Parser::parse_dtype() {
     // TODO generics
     DType dtype;
-    dtype.base = str2dtypebase(curtok().val);
+    dtype.base = str2dtypebase(curtok().val, m_sdefs);
+    if (dtype.base == DTypeBase::STRUCT) {
+        dtype.struct_name = curtok().val;
+    }
     advance(TType::ID);
 
     while (curtok().type == TType::OP && curtok().val == "*") {
@@ -316,3 +321,22 @@ uptr<Node> Parser::parse_unop() {
 
     return res;
 }
+
+uptr<Node> Parser::parse_sdef() {
+    uptr<Node> sdef = mkuq<Node>(NType::SDEF);
+
+    sdef->sdef_name = curtok().val;
+    advance(TType::ID);
+    advance(TType::LBRACE);
+    while (curtok().type != TType::RBRACE) {
+        uptr<Node> typevar = parse_typevar();
+        sdef->sdef_membs.push_back(std::move(typevar));
+        if (curtok().type == TType::COMMA) advance(TType::COMMA);
+        else break;
+    }
+    advance(TType::RBRACE);
+
+    m_sdefs.push_back(sdef.get());
+    return sdef;
+}
+

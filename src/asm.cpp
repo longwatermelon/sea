@@ -44,6 +44,9 @@ void Visitor::gen_expr(uptr<Node> &expr) {
     } break;
     case NType::BREAK: return gen_break();
     case NType::CONT: return gen_continue();
+    case NType::SDEF: {
+        m_sdefs.push_back(expr.get());
+    } break;
     }
 }
 
@@ -113,7 +116,7 @@ void Visitor::gen_fdef(uptr<Node> &fdef) {
         assert(param->type == NType::TYPEVAR);
         DType dtype = dtypeof(param);
         m_scope.create_var(param->typevar_name, Addr::stack(addr), dtype);
-        addr += dtype_size(dtype);
+        addr += dtype_size(dtype, m_sdefs);
     }
 
     // fdef
@@ -175,7 +178,7 @@ void Visitor::gen_fcall(uptr<Node> &fcall) {
 
     int s=0;
     for (int i=0; i<sz(fcall->fcall_args); ++i) {
-        s += dtype_size(dtypeof(fcall->fcall_args[i]));
+        s += dtype_size(dtypeof(fcall->fcall_args[i]), m_sdefs);
     }
 
     // ensure m_sp has enough headroom for arguments (move down in 16-byte increments)
@@ -197,9 +200,9 @@ void Visitor::gen_fcall(uptr<Node> &fcall) {
     for (int i=sz(fcall->fcall_args)-1; i>=0; --i) {
         auto &arg = fcall->fcall_args[i];
         Addr addr = addrof(arg);
-        gen_mov(addr, regtmp(), dtype_size(dtypeof(arg)));
+        gen_mov(addr, regtmp(), dtype_size(dtypeof(arg), m_sdefs));
 
-        Addr tmp = gen_stack_push(regtmp(), dtype_size(dtypeof(arg)));
+        Addr tmp = gen_stack_push(regtmp(), dtype_size(dtypeof(arg), m_sdefs));
     }
 
     // call function, store return address on stack
@@ -219,7 +222,7 @@ void Visitor::gen_fcall(uptr<Node> &fcall) {
     // [/cleanup]
 
     if (dtypeof(fcall).base != DTypeBase::VOID) {
-        fcall->_addr = gen_stack_push(regret(), dtype_size(dtypeof(fcall)));
+        fcall->_addr = gen_stack_push(regret(), dtype_size(dtypeof(fcall), m_sdefs));
     }
 }
 
@@ -237,7 +240,7 @@ void Visitor::gen_builtin_syscall(uptr<Node> &fcall) {
 
     for (int i=0; i<sz(fcall->fcall_args); ++i) {
         Addr addr = addrof(fcall->fcall_args[i]);
-        gen_mov(addr, Addr::reg(reg_ord[i]), dtype_size(dtypeof(fcall->fcall_args[i])));
+        gen_mov(addr, Addr::reg(reg_ord[i]), dtype_size(dtypeof(fcall->fcall_args[i]), m_sdefs));
     }
 
     // call
@@ -257,13 +260,12 @@ void Visitor::gen_builtin_stalloc(uptr<Node> &fcall) {
     // require 2 argument: a VAL integer (# elements), and a DTYPE type (element types).
     ll cnt = fcall->fcall_args[0]->val_int;
     DType type = fcall->fcall_args[1]->dtype_type;
-    int bytes = (int)(cnt * dtype_size(type));
+    int bytes = (int)(cnt * dtype_size(type, m_sdefs));
 
     // alloc space
     Addr addr = gen_stack_reserve(bytes);
 
     // return ptr to this space
-
     switch (m_arch) {
     case Arch::x86_64: m_asm += "\tleaq "+addr.repr(m_arch)+", "+regtmp().repr(m_arch)+"\n"; break;
     case Arch::ARM64: m_asm += "\tadd "+regtmp().repr(m_arch)+", x29, #"+std::to_string(addr.rbp_addr)+"\n"; break;
@@ -277,7 +279,7 @@ void Visitor::gen_builtin_sizeof(uptr<Node> &fcall) {
     // require 1 argument: a type.
     DType type = fcall->fcall_args[0]->dtype_type;
 
-    gen_store_literal((ll)dtype_size(type), regtmp());
+    gen_store_literal((ll)dtype_size(type, m_sdefs), regtmp());
     // 8 bytes because sizeof returns 64-bit int integer
     fcall->_addr = gen_stack_push(regtmp(), 8);
 }
@@ -286,7 +288,7 @@ void Visitor::gen_builtin_galloc(uptr<Node> &fcall) {
     // require 2 arguments: VAL int (# elements), DTYPE (element type).
     ll cnt = fcall->fcall_args[0]->val_int;
     DType type = fcall->fcall_args[1]->dtype_type;
-    int bytes = (int)(cnt * dtype_size(type));
+    int bytes = (int)(cnt * dtype_size(type, m_sdefs));
 
     // align to 8 bytes to ensure proper alignment for subsequent data items
     int aligned_bytes = bytes + ((8 - bytes%8) % 8);
@@ -303,7 +305,7 @@ void Visitor::gen_builtin_galloc(uptr<Node> &fcall) {
 void Visitor::gen_ret(uptr<Node> &ret) {
     gen_expr(ret->ret_val);
     // gen_stack_mov_raw(stkloc(addrof(ret->ret_val)), "%rax");
-    gen_mov(addrof(ret->ret_val), regret(), dtype_size(dtypeof(ret->ret_val)));
+    gen_mov(addrof(ret->ret_val), regret(), dtype_size(dtypeof(ret->ret_val), m_sdefs));
     switch (m_arch) {
     case Arch::x86_64: {
         m_asm += "\n\tmovq %rbp, %rsp\n"
@@ -326,9 +328,12 @@ void Visitor::gen_val(uptr<Node> &val) {
     case DTypeBase::BYTE: {
         gen_store_literal(val->val_byte, regtmp());
     } break;
+    case DTypeBase::STRUCT: {
+        throw std::runtime_error("[Visitor::gen_val] STRUCT unimplemented for now");
+    } break;
     case DTypeBase::VOID: throw std::runtime_error("[Visitor::gen_val] unreachable void"); break;
     }
-    val->_addr = gen_stack_push(regtmp(), dtype_size(val->val_dtype));
+    val->_addr = gen_stack_push(regtmp(), dtype_size(val->val_dtype, m_sdefs));
 }
 
 void Visitor::gen_binop(uptr<Node> &op) {
@@ -421,7 +426,7 @@ void Visitor::gen_binop(uptr<Node> &op) {
 
 
     if (math) {
-        op->_addr = gen_stack_reserve(dtype_size(dtypeof(op->op_l)));
+        op->_addr = gen_stack_reserve(dtype_size(dtypeof(op->op_l), m_sdefs));
 
         // pointer arithmetic -- special edge case
         if (op->op_type == "+") {
@@ -429,7 +434,7 @@ void Visitor::gen_binop(uptr<Node> &op) {
             if (ldtype.ptrcnt > 0) {
                 DType base = ldtype;
                 base.ptrcnt--;
-                int esize = dtype_size(base);
+                int esize = dtype_size(base, m_sdefs);
 
                 // turn op_r into a binop *
                 uptr<Node> op_r = mkuq<Node>(NType::BINOP);
@@ -446,12 +451,12 @@ void Visitor::gen_binop(uptr<Node> &op) {
         gen_expr(op->op_r);
         switch (m_arch) {
         case Arch::x86_64: {
-            gen_mov(addrof(op->op_l), Addr::reg("%rax"), dtype_size(dtypeof(op->op_l)));
-            gen_mov(addrof(op->op_r), Addr::reg("%rbx"), dtype_size(dtypeof(op->op_r)));
+            gen_mov(addrof(op->op_l), Addr::reg("%rax"), dtype_size(dtypeof(op->op_l), m_sdefs));
+            gen_mov(addrof(op->op_r), Addr::reg("%rbx"), dtype_size(dtypeof(op->op_r), m_sdefs));
         } break;
         case Arch::ARM64: {
-            gen_mov(addrof(op->op_l), Addr::reg("x0"), dtype_size(dtypeof(op->op_l)));
-            gen_mov(addrof(op->op_r), Addr::reg("x1"), dtype_size(dtypeof(op->op_r)));
+            gen_mov(addrof(op->op_l), Addr::reg("x0"), dtype_size(dtypeof(op->op_l), m_sdefs));
+            gen_mov(addrof(op->op_r), Addr::reg("x1"), dtype_size(dtypeof(op->op_r), m_sdefs));
         } break;
         }
         // [cleanup] op_l and op_r are impossible to reference from here on out
@@ -472,10 +477,12 @@ void Visitor::gen_binop(uptr<Node> &op) {
             tg = Addr::reg("x0");
         } break;
         }
-        gen_mov(tg, op->_addr, dtype_size(dtypeof(op)));
+        gen_mov(tg, op->_addr, dtype_size(dtypeof(op), m_sdefs));
     } else {
         if (op->op_type == "=") {
             gen_assign(op);
+        } else if (op->op_type == ".") {
+            gen_memb_access(op);
         }
     }
 }
@@ -494,13 +501,13 @@ void Visitor::gen_assign(uptr<Node> &op) {
     // stack based stuff
     if (op->op_l->type == NType::TYPEVAR) {
         DType dtype = dtypeof(op->op_l);
-        Addr addr = gen_stack_reserve(dtype_size(dtype));
+        Addr addr = gen_stack_reserve(dtype_size(dtype, m_sdefs));
         m_scope.create_var(op->op_l->typevar_name, addr, dtype);
 
         // initializer provided? store into the newly created var
         if (op->op_r) {
-            gen_mov(addrof(op->op_r), regtmp(), dtype_size(dtypeof(op->op_r)));
-            gen_mov(regtmp(), m_scope.find_var(op->op_l->typevar_name), dtype_size(dtype));
+            gen_mov(addrof(op->op_r), regtmp(), dtype_size(dtypeof(op->op_r), m_sdefs));
+            gen_mov(regtmp(), m_scope.find_var(op->op_l->typevar_name), dtype_size(dtype, m_sdefs));
             cleanup_dangling(op->op_r);
             tighten_stack();
         }
@@ -509,8 +516,8 @@ void Visitor::gen_assign(uptr<Node> &op) {
         // move result to var in op_l
         assert(m_scope.var_exists(op->op_l->var_name));
         // load with source size, store with dest size for automatic widening/narrowing
-        gen_mov(addrof(op->op_r), regtmp(), dtype_size(dtypeof(op->op_r)));
-        gen_mov(regtmp(), m_scope.find_var(op->op_l->var_name), dtype_size(dtypeof(op->op_l)));
+        gen_mov(addrof(op->op_r), regtmp(), dtype_size(dtypeof(op->op_r), m_sdefs));
+        gen_mov(regtmp(), m_scope.find_var(op->op_l->var_name), dtype_size(dtypeof(op->op_l), m_sdefs));
         // gen_dubref_mov(addrof(op->op_r).repr(), m_scope.find_var(op->op_l->var_name).repr());
 
         // [cleanup] op_r is useless now that op_l is the handle to op_r's value. op_l is VAR and doesn't need to be cleaned.
@@ -521,9 +528,9 @@ void Visitor::gen_assign(uptr<Node> &op) {
         gen_expr(op->op_l->unop_obj);
         gen_mov(addrof(op->op_l->unop_obj), regtmp(1), 8);  // pointer is always 8 bytes
         // load with source size, store with dest size for automatic widening/narrowing
-        gen_mov(addrof(op->op_r), regtmp(), dtype_size(dtypeof(op->op_r)));
+        gen_mov(addrof(op->op_r), regtmp(), dtype_size(dtypeof(op->op_r), m_sdefs));
 
-        gen_mov(regtmp(), deref_reg(regtmp(1)), dtype_size(dtypeof(op->op_l)));
+        gen_mov(regtmp(), deref_reg(regtmp(1)), dtype_size(dtypeof(op->op_l), m_sdefs));
         // switch (m_arch) {
         // case Arch::x86_64: gen_mov(regtmp(), deref_reg(regtmp(1))"(%rbx)"); break;
         // case Arch::ARM64: gen_mov("x0", "[x1]"); break;
@@ -532,7 +539,44 @@ void Visitor::gen_assign(uptr<Node> &op) {
         // [cleanup]
         cleanup_dangling(op->op_l->unop_obj);
         tighten_stack();
+    } else if (op->op_l->type == NType::BINOP && op->op_l->op_type == ".") {
+        // lhs is struct member access - compute destination address directly
+        // without evaluating lhs as a value.
+        std::function<int(uptr<Node>&)> f;
+        f = [&](uptr<Node> &x) -> int {
+            if (x->type != NType::BINOP) {
+                return addrof(x).rbp_addr;
+            }
+            return f(x->op_l) + find_member_offset(dtypeof(x->op_l), x->op_r->var_name, m_sdefs);
+        };
+
+        int offset = f(op->op_l);
+        int dst_sz = dtype_size(dtypeof(op->op_l), m_sdefs);
+
+        gen_mov(addrof(op->op_r), regtmp(), dtype_size(dtypeof(op->op_r), m_sdefs));
+        gen_mov(regtmp(), Addr::stack(offset), dst_sz);
+
+        // [cleanup]
+        cleanup_dangling(op->op_r);
+        tighten_stack();
     }
+}
+
+void Visitor::gen_memb_access(uptr<Node> &op) {
+    std::function<int(uptr<Node>&)> f;
+    f = [&](uptr<Node> &x) {
+        if (x->type != NType::BINOP) {
+            return addrof(x).rbp_addr;
+        }
+
+        return f(x->op_l) + find_member_offset(dtypeof(x->op_l), x->op_r->var_name, m_sdefs);
+    };
+
+    int offset = f(op);
+    DType dtype = dtypeof(op);
+    int dtype_sz = dtype_size(dtype, m_sdefs);
+    gen_mov(Addr::stack(offset), regtmp(), dtype_sz);
+    op->_addr = gen_stack_push(regtmp(), dtype_sz);
 }
 
 void Visitor::gen_unop(uptr<Node> &op) {
@@ -578,7 +622,7 @@ void Visitor::gen_deref(uptr<Node> &op) {
     cleanup_dangling(op->unop_obj);
     tighten_stack();
     // [/cleanup]
-    op->_addr = gen_stack_push(deref_reg(regtmp()), dtype_size(dtypeof(op)));
+    op->_addr = gen_stack_push(deref_reg(regtmp()), dtype_size(dtypeof(op), m_sdefs));
 }
 
 void Visitor::gen_if(uptr<Node> &node) {
@@ -587,7 +631,7 @@ void Visitor::gen_if(uptr<Node> &node) {
 
     // conditional
     gen_expr(node->if_cond);
-    gen_mov(addrof(node->if_cond), regtmp(), dtype_size(dtypeof(node->if_cond)));
+    gen_mov(addrof(node->if_cond), regtmp(), dtype_size(dtypeof(node->if_cond), m_sdefs));
     // [cleanup] if_cond is dangling now
     cleanup_dangling(node->if_cond);
     tighten_stack();
@@ -635,7 +679,7 @@ void Visitor::gen_while(uptr<Node> &node) {
 
     // cond
     gen_expr(node->while_cond);
-    gen_mov(addrof(node->while_cond), regtmp(), dtype_size(dtypeof(node->while_cond)));
+    gen_mov(addrof(node->while_cond), regtmp(), dtype_size(dtypeof(node->while_cond), m_sdefs));
     // [cleanup] while_cond is dangling now
     cleanup_dangling(node->while_cond);
     tighten_stack();
@@ -725,6 +769,7 @@ void Visitor::gen_global_var(uptr<Node> &op) {
             switch (dtypeof(node).base) {
             case DTypeBase::INT: val = std::to_string(node->val_int); break;
             case DTypeBase::BYTE: val = std::to_string((int)node->val_byte); break;
+            case DTypeBase::STRUCT: assert(false); break; // structs can't be global initialized
             case DTypeBase::VOID: assert(false); break;
             }
         }
@@ -732,6 +777,7 @@ void Visitor::gen_global_var(uptr<Node> &op) {
         switch (dtypeof(op->op_l).base) {
         case DTypeBase::INT: val = "0"; break;
         case DTypeBase::BYTE: val = "0"; break;
+        case DTypeBase::STRUCT: val = ""; break;
         case DTypeBase::VOID: assert(false); break;
         }
     }
@@ -745,6 +791,8 @@ void Visitor::gen_global_var(uptr<Node> &op) {
         switch (dtype.base) {
         case DTypeBase::INT: m_asm_data += name+": .quad "+val+"\n"; break;
         case DTypeBase::BYTE: m_asm_data += name+": .byte "+val+"\n"; break;
+        // TODO
+        case DTypeBase::STRUCT: assert(false); break;
         case DTypeBase::VOID: assert(false); break;
         }
     }
@@ -908,6 +956,7 @@ Addr Visitor::addrof(uptr<Node> &node) {
     case NType::BREAK:
     case NType::CONT:
     case NType::TYPEVAR:
+    case NType::SDEF:
         break;
     }
 
@@ -916,7 +965,29 @@ Addr Visitor::addrof(uptr<Node> &node) {
 
 DType Visitor::dtypeof(uptr<Node> &node) {
     switch (node->type) {
-    case NType::BINOP: return dtypeof(node->op_l);
+    case NType::BINOP: {
+        if (node->op_type == ".") {
+            // special struct member access
+            DType parent = dtypeof(node->op_l);
+            string name = node->op_r->var_name;
+
+            for (auto sdef : m_sdefs) {
+                if (sdef->sdef_name == parent.struct_name) {
+                    for (auto &typevar : sdef->sdef_membs) {
+                        if (typevar->typevar_name == name) {
+                            return typevar->typevar_dtype;
+                        }
+                    }
+
+                    throw std::runtime_error("[Visitor::dtypeof] no member '" + name + "' exists in struct '" + parent.struct_name + "'.");
+                }
+            }
+            throw std::runtime_error("[Visitor::dtypeof] no struct '" + parent.struct_name + "' exists.");
+        } else {
+            // make lhs result type by default
+            return dtypeof(node->op_l);
+        }
+    }
     case NType::FDEF: return node->fdef_ret_dtype;
     case NType::FCALL: {
         // handle builtin functions
@@ -951,6 +1022,7 @@ DType Visitor::dtypeof(uptr<Node> &node) {
     case NType::CPD:
     case NType::BREAK:
     case NType::CONT:
+    case NType::SDEF:
         break;
     }
 

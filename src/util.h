@@ -37,6 +37,7 @@ inline int precedence(const string &op) {
         {"*", 5},
         {"/", 5},
         {"%", 5},
+        {".", 6},
     };
     return ans[op];
 }

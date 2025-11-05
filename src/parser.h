@@ -33,6 +33,8 @@ private:
 
     uptr<Node> parse_unop();
 
+    uptr<Node> parse_sdef();
+
 public:
     Token curtok() const {return m_toks[m_ind];}
 
@@ -41,4 +43,6 @@ private:
     ll m_ind;
 
     static ll m_label_id;
+
+    vec<Node*> m_sdefs;
 };

@@ -18,35 +18,34 @@ enum class NType {
     DTYPE, // dtype, needed for recognizing "int*" as an expression
     BREAK, // break
     CONT, // continue
+    SDEF, // struct def
 };
 
 enum class DTypeBase {
     INT,
     BYTE,
     VOID,
+    STRUCT,
 };
 
 struct DType {
     DTypeBase base = DTypeBase::VOID;
+    string struct_name = "";
     int ptrcnt=0;
 
     DType()=default;
     DType(DTypeBase base, int ptrcnt=0) : base(base), ptrcnt(ptrcnt) {}
+    DType(DTypeBase base, string struct_name, int ptrcnt=0) : base(base), struct_name(struct_name), ptrcnt(ptrcnt) {}
 };
 
-inline bool is_dtypebase(const string &s) {
-    return s == "int" || s == "void" || s == "byte";
-}
+struct Node;
 
-inline DTypeBase str2dtypebase(const string &s) {
-    if (s=="int") return DTypeBase::INT;
-    else if (s=="byte") return DTypeBase::BYTE;
-    else if (s=="void") return DTypeBase::VOID;
-    else throw std::runtime_error("str2dtype failed");
-    // TODO better error
-}
+bool is_dtypebase(const string &s, vec<Node*> &sdefs);
+DTypeBase str2dtypebase(const string &s, vec<Node*> &sdefs);
 
-inline int dtype_size(DType type) {
+inline int find_struct_size(DType type, vec<Node*> &sdefs);
+
+inline int dtype_size(DType type, vec<Node*> &sdefs) {
     if (type.ptrcnt>0) {
         return 8;
     }
@@ -55,6 +54,7 @@ inline int dtype_size(DType type) {
     case DTypeBase::INT: return 8;
     case DTypeBase::BYTE: return 1;
     case DTypeBase::VOID: return 0;
+    case DTypeBase::STRUCT: return find_struct_size(type, sdefs);
     }
 }
 
@@ -168,4 +168,54 @@ struct Node {
 
     // dtype
     DType dtype_type;
+
+    // sdef
+    string sdef_name;
+    vec<uptr<Node>> sdef_membs; // all typevars
 };
+
+inline int find_struct_size(DType type, vec<Node*> &sdefs) {
+    for (auto &sdef : sdefs) {
+        if (sdef->sdef_name == type.struct_name) {
+            int ans = 0;
+            for (auto &typevar : sdef->sdef_membs) {
+                ans += dtype_size(typevar->typevar_dtype, sdefs);
+            }
+            return ans;
+        }
+    }
+
+    throw std::runtime_error("[node.h find_struct_size] unreachable - requested dtype doesn't exist as a struct definition in sdefs");
+}
+
+inline int find_member_offset(DType type, string name, vec<Node*> &sdefs) {
+    for (auto &sdef : sdefs) {
+        if (sdef->sdef_name == type.struct_name) {
+            int offset = 0;
+            for (int i = 0; i < sz(sdef->sdef_membs); ++i) {
+                if (sdef->sdef_membs[i]->typevar_name == name) {
+                    return offset;
+                }
+
+                offset += dtype_size(sdef->sdef_membs[i]->typevar_dtype, sdefs);
+            }
+        }
+    }
+
+    throw std::runtime_error("[node.h find_member_offset] unreachable - requested dtype doesn't exist as a struct definition in sdefs");
+}
+
+inline bool is_dtypebase(const string &s, vec<Node*> &sdefs) {
+    return s == "int" || s == "void" || s == "byte" || std::find_if(begin(sdefs), end(sdefs), [&](Node *sdef){return sdef->sdef_name == s;}) != end(sdefs);
+}
+
+inline DTypeBase str2dtypebase(const string &s, vec<Node*> &sdefs) {
+    if (s=="int") return DTypeBase::INT;
+    else if (s=="byte") return DTypeBase::BYTE;
+    else if (s=="void") return DTypeBase::VOID;
+    else if (std::find_if(begin(sdefs), end(sdefs), [&](Node *sdef){return sdef->sdef_name == s;}) != end(sdefs)) return DTypeBase::STRUCT;
+    else throw std::runtime_error("str2dtype failed");
+    // TODO better error
+}
+
+

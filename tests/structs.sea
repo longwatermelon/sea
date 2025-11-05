@@ -1,0 +1,12 @@
+struct A {
+    x:int,
+    y:byte
+}
+
+fn main() -> int {
+    let x:A;
+    x.x = 4;
+    x.y = 10b;
+
+    return x.x + x.y;
+}
