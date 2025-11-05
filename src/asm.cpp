@@ -824,6 +824,16 @@ void Visitor::gen_mov(Addr src, Addr dst, int nbytes) {
         string load_instr = (nbytes == 1) ? "ldrb" : "ldr";
         string store_instr = (nbytes == 1) ? "strb" : "str";
 
+        // return true if need immediate outside of [-256,255]
+        auto emit_large_offset = [&](int off) {
+            if (off < -256 || off > 255) {
+                if (off < 0) m_asm += "\tsub x12, x29, #"+std::to_string(abs(off))+"\n";
+                else m_asm += "\tadd x12, x29, #"+std::to_string(abs(off))+"\n";
+                return true;
+            }
+            return false;
+        };
+
         // perform mov
         if (src.is_mem() && dst.is_mem()) {
             // MEM -> MEM
@@ -835,6 +845,12 @@ void Visitor::gen_mov(Addr src, Addr dst, int nbytes) {
                 Addr reg = regtmp(free_reg);
                 m_asm += "\tadrp "+reg.repr(m_arch)+", "+src.repr(m_arch)+"@PAGE\n"
                          "\t"+load_instr+" "+reg_for_size(dst.repr(m_arch), nbytes)+", ["+reg.repr(m_arch)+", "+src.repr(m_arch)+"@PAGEOFF]\n";
+            } else if (src.type == AType::RBP) {
+                if (emit_large_offset(src.rbp_addr)) {
+                    m_asm += "\t"+load_instr+" "+reg_for_size(dst.repr(m_arch), nbytes)+", [x12]\n";
+                } else {
+                    m_asm += "\t"+load_instr+" "+reg_for_size(dst.repr(m_arch), nbytes)+", "+src.repr(m_arch)+"\n";
+                }
             } else {
                 m_asm += "\t"+load_instr+" "+reg_for_size(dst.repr(m_arch), nbytes)+", "+src.repr(m_arch)+"\n";
             }
@@ -844,6 +860,12 @@ void Visitor::gen_mov(Addr src, Addr dst, int nbytes) {
                 Addr reg = regtmp(free_reg);
                 m_asm += "\tadrp "+reg.repr(m_arch)+", "+dst.repr(m_arch)+"@PAGE\n"
                          "\t"+store_instr+" "+reg_for_size(src.repr(m_arch), nbytes)+", ["+reg.repr(m_arch)+", "+dst.repr(m_arch)+"@PAGEOFF]\n";
+            } else if (dst.type == AType::RBP) {
+                if (emit_large_offset(dst.rbp_addr)) {
+                    m_asm += "\t"+store_instr+" "+reg_for_size(src.repr(m_arch), nbytes)+", [x12]\n";
+                } else {
+                    m_asm += "\t"+store_instr+" "+reg_for_size(src.repr(m_arch), nbytes)+", "+dst.repr(m_arch)+"\n";
+                }
             } else {
                 m_asm += "\t"+store_instr+" "+reg_for_size(src.repr(m_arch), nbytes)+", "+dst.repr(m_arch)+"\n";
             }
