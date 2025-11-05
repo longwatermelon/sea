@@ -541,21 +541,12 @@ void Visitor::gen_assign(uptr<Node> &op) {
         cleanup_dangling(op->op_l->unop_obj);
         tighten_stack();
     } else if (op->op_l->type == NType::BINOP && op->op_l->op_type == ".") {
-        // lhs is struct member access - compute destination address directly
-        // without evaluating lhs as a value.
-        std::function<int(uptr<Node>&)> f;
-        f = [&](uptr<Node> &x) -> int {
-            if (x->type != NType::BINOP) {
-                return addrof(x).rbp_addr;
-            }
-            return f(x->op_l) + find_member_offset(dtypeof(x->op_l), x->op_r->var_name, m_sdefs);
-        };
-
-        int offset = f(op->op_l);
+        // struct member assign
+        Addr dst_addr = find_memb_addr(op->op_l);
         int dst_sz = dtype_size(dtypeof(op->op_l), m_sdefs);
 
         gen_mov(addrof(op->op_r), regtmp(), dtype_size(dtypeof(op->op_r), m_sdefs));
-        gen_mov(regtmp(), Addr::stack(offset), dst_sz);
+        gen_mov(regtmp(), dst_addr, dst_sz);
 
         // [cleanup]
         cleanup_dangling(op->op_r);
@@ -564,20 +555,77 @@ void Visitor::gen_assign(uptr<Node> &op) {
 }
 
 void Visitor::gen_memb_access(uptr<Node> &op) {
-    std::function<int(uptr<Node>&)> f;
-    f = [&](uptr<Node> &x) {
-        if (x->type != NType::BINOP) {
-            return addrof(x).rbp_addr;
-        }
-
-        return f(x->op_l) + find_member_offset(dtypeof(x->op_l), x->op_r->var_name, m_sdefs);
-    };
-
-    int offset = f(op);
+    Addr addr = find_memb_addr(op);
     DType dtype = dtypeof(op);
     int dtype_sz = dtype_size(dtype, m_sdefs);
-    gen_mov(Addr::stack(offset), regtmp(), dtype_sz);
+    gen_mov(addr, regtmp(), dtype_sz);
     op->_addr = gen_stack_push(regtmp(), dtype_sz);
+}
+
+Addr Visitor::find_memb_addr(uptr<Node> &dot) {
+    // accumulate byte offset
+    uptr<Node> *cur = &dot;
+    int offset = 0;
+    while ((*cur)->type == NType::BINOP && (*cur)->op_type == ".") {
+        offset += find_member_offset(dtypeof((*cur)->op_l), (*cur)->op_r->var_name, m_sdefs);
+        cur = &(*cur)->op_l;
+    }
+    uptr<Node> &base = *cur;
+
+    auto add_imm = [&](Addr reg, int off) {
+        if (off == 0) return;
+        switch (m_arch) {
+        case Arch::x86_64:
+            m_asm += "\taddq $" + std::to_string(off) + ", " + reg.repr(m_arch) + "\n";
+            break;
+        case Arch::ARM64:
+            m_asm += "\tadd " + reg.repr(m_arch) + ", " + reg.repr(m_arch) + ", #" + std::to_string(off) + "\n";
+            break;
+        }
+    };
+
+    // deref? (only case other than var for now)
+    if (base->type == NType::UNOP && base->unop_type == "*") {
+        // base->unop_obj is a pointer
+        gen_expr(base->unop_obj);
+        gen_mov(addrof(base->unop_obj), regtmp(1), 8);
+        add_imm(regtmp(1), offset);
+
+        cleanup_dangling(base->unop_obj);
+        tighten_stack();
+        return deref_reg(regtmp(1));
+    }
+
+    // var
+    gen_expr(base);
+    Addr addr = addrof(base);
+
+    Addr res;
+    switch (addr.type) {
+    case AType::RBP: {
+        addr.rbp_addr += offset;
+        res = addr;
+    } break;
+    case AType::RIP: {
+        switch (m_arch) {
+        case Arch::x86_64: m_asm += "\tleaq " + addr.repr(m_arch) + ", " + regtmp(1).repr(m_arch) + "\n"; break;
+        case Arch::ARM64: {
+            m_asm += "\tadrp " + regtmp(1).repr(m_arch) + ", " + addr.rip_addr + "@PAGE\n";
+            m_asm += "\tadd " + regtmp(1).repr(m_arch) + ", " + regtmp(1).repr(m_arch) + ", " + addr.rip_addr + "@PAGEOFF\n";
+        } break;
+        }
+
+        add_imm(regtmp(1), offset);
+    } break;
+    case AType::REG: {
+        // shouldn't happen? no variables should have a home in a register
+        throw std::runtime_error("[Visitor::find_memb_addr] base type was REG, doesn't make sense");
+    } break;
+    }
+
+    cleanup_dangling(base);
+    tighten_stack();
+    return res;
 }
 
 void Visitor::gen_unop(uptr<Node> &op) {
@@ -609,7 +657,7 @@ void Visitor::gen_getptr(uptr<Node> &op) {
     } else if (op->unop_obj->type == NType::UNOP && op->unop_obj->unop_type == "*") {
         // LVALUE DEREF
         gen_expr(op->unop_obj->unop_obj);
-        gen_mov(addrof(op->unop_obj->unop_obj), regtmp(), 8);  // pointer is always 8 bytes
+        gen_mov(addrof(op->unop_obj->unop_obj), regtmp(), 8); // pointer is always 8 bytes
     }
 
     // pointers are always 8 bytes

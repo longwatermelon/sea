@@ -26,6 +26,7 @@ public:
     void gen_binop(uptr<Node> &op);
     void gen_assign(uptr<Node> &op);
     void gen_memb_access(uptr<Node> &op);
+    Addr find_memb_addr(uptr<Node> &dot);
 
     void gen_unop(uptr<Node> &op);
     void gen_getptr(uptr<Node> &op);
