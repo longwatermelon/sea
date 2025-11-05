@@ -1,5 +1,6 @@
 #include "asm.h"
 #include <cassert>
+#include <functional>
 
 ll Visitor::m_galloc_id = 0;
 

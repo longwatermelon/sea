@@ -1,0 +1,27 @@
+struct Rectangle {
+    width:int,
+    height:int
+}
+
+fn area(r:Rectangle*) -> int {
+    return (*r).width * (*r).height;
+}
+
+fn scale(r:Rectangle*, factor:int) -> void {
+    (*r).width = (*r).width * factor;
+    (*r).height = (*r).height * factor;
+}
+
+fn main() -> int {
+    let rect:Rectangle;
+    rect.width = 5;
+    rect.height = 4;
+
+    let a1:int = area(&rect);
+
+    scale(&rect, 3);
+
+    let a2:int = area(&rect);
+
+    return a1 + a2;
+}

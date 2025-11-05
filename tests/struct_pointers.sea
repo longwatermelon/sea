@@ -1,0 +1,19 @@
+struct Point {
+    x:int,
+    y:int
+}
+
+fn main() -> int {
+    let p:Point;
+    p.x = 10;
+    p.y = 20;
+
+    let ptr:Point* = &p;
+
+    let sum:int = (*ptr).x + (*ptr).y;
+
+    (*ptr).x = 15;
+    (*ptr).y = 25;
+
+    return p.x + p.y + sum;
+}

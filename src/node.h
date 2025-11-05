@@ -1,6 +1,7 @@
 #pragma once
 #include "util.h"
 #include <stdexcept>
+#include <algorithm>
 
 enum class NType {
     CPD, // compound

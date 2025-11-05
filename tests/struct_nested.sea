@@ -1,0 +1,27 @@
+struct Vec2 {
+    x:int,
+    y:int
+}
+
+struct Particle {
+    pos:Vec2,
+    vel:Vec2,
+    mass:int
+}
+
+fn main() -> int {
+    let p:Particle;
+
+    p.pos.x = 10;
+    p.pos.y = 20;
+
+    p.vel.x = 5;
+    p.vel.y = 3;
+
+    p.mass = 100;
+
+    p.pos.x = p.pos.x + p.vel.x;
+    p.pos.y = p.pos.y + p.vel.y;
+
+    return p.pos.x + p.pos.y + p.mass - 4;
+}

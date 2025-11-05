@@ -1,0 +1,27 @@
+struct Node {
+    value:int,
+    next_idx:int
+}
+
+fn main() -> int {
+    let nodes:Node* = stalloc(3, Node);
+
+    nodes[0].value = 100;
+    nodes[0].next_idx = 1;
+
+    nodes[1].value = 200;
+    nodes[1].next_idx = 2;
+
+    nodes[2].value = 300;
+    nodes[2].next_idx = -1;
+
+    let sum:int = 0;
+    let idx:int = 0;
+
+    while (idx != -1) {
+        sum = sum + nodes[idx].value;
+        idx = nodes[idx].next_idx;
+    }
+
+    return sum;
+}
