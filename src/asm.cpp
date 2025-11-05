@@ -23,39 +23,25 @@ string Visitor::gen(uptr<Node> &root) {
 void Visitor::gen_expr(uptr<Node> &expr) {
     switch (expr->type) {
     case NType::CPD: gen_cpd(expr); break;
-    case NType::DEF: {
-        if (expr->def_obj->type == NType::FN) {
-            gen_fdef(expr);
-        } else {
-            // global or stack based?
-            if (m_scope.layer_count()==1) {
-                // global
-                gen_global_var(expr);
-            } else {
-                // stack based
-                Addr addr = gen_stack_reserve(dtype_size(expr->dtype));
-                m_scope.create_var(expr->def_obj->op_l->var_name, addr, expr->dtype);
-
-                // rhs not null? then carry out assign op like normal
-                if (expr->def_obj->op_r) {
-                    gen_expr(expr->def_obj);
-                }
-            }
-        }
-        // [cleanup] FN, VAR, BINOP EQ never allocate stack space
-        break;
-    }
+    case NType::FDEF: gen_fdef(expr); break;
     case NType::RET: gen_ret(expr); break;
     case NType::VAL: gen_val(expr); break;
     case NType::BINOP: gen_binop(expr); break;
     case NType::UNOP: gen_unop(expr); break;
     case NType::VAR: break; // VAR is just a string handle to m_scope
-    case NType::FN: gen_fcall(expr); break;
+    case NType::FCALL: gen_fcall(expr); break;
     case NType::IF: gen_if(expr); break;
     case NType::WHILE: gen_while(expr); break;
     // TODO
     case NType::STR: break;
     case NType::DTYPE: break;
+    case NType::TYPEVAR: {
+        uptr<Node> decl = mkuq<Node>(NType::BINOP);
+        decl->op_type = "=";
+        decl->op_l = std::move(expr);
+        gen_assign(decl);
+        return;
+    } break;
     case NType::BREAK: return gen_break();
     case NType::CONT: return gen_continue();
     }
@@ -105,13 +91,13 @@ void Visitor::gen_cpd(uptr<Node> &cpd) {
 void Visitor::gen_fdef(uptr<Node> &fdef) {
     // add to scope
     vec<DType> scope_args;
-    for (auto &arg : fdef->def_obj->fn_args) {
-        scope_args.push_back(arg->dtype);
+    for (auto &arg : fdef->fdef_params) {
+        scope_args.push_back(dtypeof(arg));
     }
-    m_scope.create_fn(fdef->def_obj->fn_name, fdef->dtype, scope_args);
+    m_scope.create_fn(fdef->fdef_name, fdef->fdef_ret_dtype, scope_args);
 
     // declaration?
-    if (!fdef->def_obj->fn_body) {
+    if (!fdef->fdef_body) {
         return;
     }
 
@@ -123,26 +109,28 @@ void Visitor::gen_fdef(uptr<Node> &fdef) {
 
     // prep params
     int addr=16;
-    for (auto &param : fdef->def_obj->fn_args) {
-        m_scope.create_var(param->var_name, Addr::stack(addr), param->dtype);
-        addr += dtype_size(param->dtype);
+    for (auto &param : fdef->fdef_params) {
+        assert(param->type == NType::TYPEVAR);
+        DType dtype = dtypeof(param);
+        m_scope.create_var(param->typevar_name, Addr::stack(addr), dtype);
+        addr += dtype_size(dtype);
     }
 
     // fdef
     switch (m_arch) {
     case Arch::x86_64: {
-        m_asm += ".global "+fdef->def_obj->fn_name+"\n"+fdef->def_obj->fn_name+":\n";
+        m_asm += ".global "+fdef->fdef_name+"\n"+fdef->fdef_name+":\n";
         m_asm += "\tpush %rbp\n"
                  "\tmovq %rsp, %rbp\n\n";
     } break;
     case Arch::ARM64: {
-        m_asm += ".global _"+fdef->def_obj->fn_name+"\n_"+fdef->def_obj->fn_name+":\n";
+        m_asm += ".global _"+fdef->fdef_name+"\n_"+fdef->fdef_name+":\n";
         m_asm += "\tstp x29, x30, [sp, #-16]!\n"
                  "\tmov x29, sp\n";
     } break;
     }
 
-    gen_expr(fdef->def_obj->fn_body);
+    gen_expr(fdef->fdef_body);
     // [cleanup] fn body never allocates stack space
 
     switch (m_arch) {
@@ -165,29 +153,29 @@ void Visitor::gen_fdef(uptr<Node> &fdef) {
 }
 
 void Visitor::gen_fcall(uptr<Node> &fcall) {
-    if (fcall->fn_name == "syscall") {
+    if (fcall->fcall_name == "syscall") {
         gen_builtin_syscall(fcall);
         return;
-    } else if (fcall->fn_name == "stalloc") {
+    } else if (fcall->fcall_name == "stalloc") {
         gen_builtin_stalloc(fcall);
         return;
-    } else if (fcall->fn_name == "sizeof") {
+    } else if (fcall->fcall_name == "sizeof") {
         gen_builtin_sizeof(fcall);
         return;
-    } else if (fcall->fn_name == "galloc") {
+    } else if (fcall->fcall_name == "galloc") {
         gen_builtin_galloc(fcall);
         return;
     }
 
     // TODO type-check against actual args from m_scope
     // eval args, create addresses
-    for (auto &arg : fcall->fn_args) {
+    for (auto &arg : fcall->fcall_args) {
         gen_expr(arg);
     }
 
     int s=0;
-    for (int i=0; i<sz(fcall->fn_args); ++i) {
-        s += dtype_size(dtypeof(fcall->fn_args[i]));
+    for (int i=0; i<sz(fcall->fcall_args); ++i) {
+        s += dtype_size(dtypeof(fcall->fcall_args[i]));
     }
 
     // ensure m_sp has enough headroom for arguments (move down in 16-byte increments)
@@ -206,8 +194,8 @@ void Visitor::gen_fcall(uptr<Node> &fcall) {
     }
 
     // push args from their cur locations to the front
-    for (int i=sz(fcall->fn_args)-1; i>=0; --i) {
-        auto &arg = fcall->fn_args[i];
+    for (int i=sz(fcall->fcall_args)-1; i>=0; --i) {
+        auto &arg = fcall->fcall_args[i];
         Addr addr = addrof(arg);
         gen_mov(addr, regtmp(), dtype_size(dtypeof(arg)));
 
@@ -216,14 +204,14 @@ void Visitor::gen_fcall(uptr<Node> &fcall) {
 
     // call function, store return address on stack
     switch (m_arch) {
-    case Arch::x86_64: m_asm += "\tcall "+fcall->fn_name+"\n"; break;
-    case Arch::ARM64: m_asm += "\tbl _"+fcall->fn_name+"\n"; break;
+    case Arch::x86_64: m_asm += "\tcall "+fcall->fcall_name+"\n"; break;
+    case Arch::ARM64: m_asm += "\tbl _"+fcall->fcall_name+"\n"; break;
     }
 
     // [cleanup] args, which are dangling now. do it before pushing fcall result to stack
     // IMPORTANT: none of these ops should touch regtmp.
-    m_scope.del_stkaddr_top_n(sz(fcall->fn_args));
-    for (auto &arg : fcall->fn_args) cleanup_dangling(arg);
+    m_scope.del_stkaddr_top_n(sz(fcall->fcall_args));
+    for (auto &arg : fcall->fcall_args) cleanup_dangling(arg);
     if (x>0) {
         m_scope.del_stkaddr(pad.rbp_addr);
     }
@@ -243,13 +231,13 @@ void Visitor::gen_builtin_syscall(uptr<Node> &fcall) {
     case Arch::ARM64: reg_ord = {"x16", "x0", "x1", "x2"}; break;
     }
 
-    for (int i=0; i<sz(fcall->fn_args); ++i) {
-        gen_expr(fcall->fn_args[i]);
+    for (int i=0; i<sz(fcall->fcall_args); ++i) {
+        gen_expr(fcall->fcall_args[i]);
     }
 
-    for (int i=0; i<sz(fcall->fn_args); ++i) {
-        Addr addr = addrof(fcall->fn_args[i]);
-        gen_mov(addr, Addr::reg(reg_ord[i]), dtype_size(dtypeof(fcall->fn_args[i])));
+    for (int i=0; i<sz(fcall->fcall_args); ++i) {
+        Addr addr = addrof(fcall->fcall_args[i]);
+        gen_mov(addr, Addr::reg(reg_ord[i]), dtype_size(dtypeof(fcall->fcall_args[i])));
     }
 
     // call
@@ -259,7 +247,7 @@ void Visitor::gen_builtin_syscall(uptr<Node> &fcall) {
     }
 
     // cleanup
-    for (auto &x : fcall->fn_args) {
+    for (auto &x : fcall->fcall_args) {
         cleanup_dangling(x);
     }
     tighten_stack();
@@ -267,8 +255,8 @@ void Visitor::gen_builtin_syscall(uptr<Node> &fcall) {
 
 void Visitor::gen_builtin_stalloc(uptr<Node> &fcall) {
     // require 2 argument: a VAL integer (# elements), and a DTYPE type (element types).
-    ll cnt = fcall->fn_args[0]->val_int;
-    DType type = fcall->fn_args[1]->dtype_type;
+    ll cnt = fcall->fcall_args[0]->val_int;
+    DType type = fcall->fcall_args[1]->dtype_type;
     int bytes = (int)(cnt * dtype_size(type));
 
     // alloc space
@@ -287,7 +275,7 @@ void Visitor::gen_builtin_stalloc(uptr<Node> &fcall) {
 
 void Visitor::gen_builtin_sizeof(uptr<Node> &fcall) {
     // require 1 argument: a type.
-    DType type = fcall->fn_args[0]->dtype_type;
+    DType type = fcall->fcall_args[0]->dtype_type;
 
     gen_store_literal((ll)dtype_size(type), regtmp());
     // 8 bytes because sizeof returns 64-bit int integer
@@ -296,8 +284,8 @@ void Visitor::gen_builtin_sizeof(uptr<Node> &fcall) {
 
 void Visitor::gen_builtin_galloc(uptr<Node> &fcall) {
     // require 2 arguments: VAL int (# elements), DTYPE (element type).
-    ll cnt = fcall->fn_args[0]->val_int;
-    DType type = fcall->fn_args[1]->dtype_type;
+    ll cnt = fcall->fcall_args[0]->val_int;
+    DType type = fcall->fcall_args[1]->dtype_type;
     int bytes = (int)(cnt * dtype_size(type));
 
     // align to 8 bytes to ensure proper alignment for subsequent data items
@@ -331,7 +319,7 @@ void Visitor::gen_ret(uptr<Node> &ret) {
 }
 
 void Visitor::gen_val(uptr<Node> &val) {
-    switch (val->dtype.base) {
+    switch (val->val_dtype.base) {
     case DTypeBase::INT: {
         gen_store_literal(val->val_int, regtmp());
     } break;
@@ -340,7 +328,7 @@ void Visitor::gen_val(uptr<Node> &val) {
     } break;
     case DTypeBase::VOID: throw std::runtime_error("[Visitor::gen_val] unreachable void"); break;
     }
-    val->_addr = gen_stack_push(regtmp(), dtype_size(val->dtype));
+    val->_addr = gen_stack_push(regtmp(), dtype_size(val->val_dtype));
 }
 
 void Visitor::gen_binop(uptr<Node> &op) {
@@ -447,8 +435,9 @@ void Visitor::gen_binop(uptr<Node> &op) {
                 uptr<Node> op_r = mkuq<Node>(NType::BINOP);
                 op_r->op_type = "*";
                 op_r->op_l = std::move(op->op_r);
-                op_r->op_r = mkuq<Node>(NType::VAL, DType(DTypeBase::INT));
+                op_r->op_r = mkuq<Node>(NType::VAL);
                 op_r->op_r->val_int = esize;
+                op_r->op_r->val_dtype = DType(DTypeBase::INT);
                 op->op_r = std::move(op_r);
             }
         }
@@ -492,10 +481,31 @@ void Visitor::gen_binop(uptr<Node> &op) {
 }
 
 void Visitor::gen_assign(uptr<Node> &op) {
-    // compute op_r
-    gen_expr(op->op_r);
+    // evaluate globals first - we don't want to evaluate op->op_r (in the standard way) if global.
+    // gen_global_var has special handling of op_r (like .quad xxx).
+    if (op->op_l->type == NType::TYPEVAR && m_scope.layer_count() == 1) {
+        gen_global_var(op);
+        return;
+    }
 
-    if (op->op_l->type == NType::VAR) {
+    // compute op_r if present
+    if (op->op_r) gen_expr(op->op_r);
+
+    // stack based stuff
+    if (op->op_l->type == NType::TYPEVAR) {
+        DType dtype = dtypeof(op->op_l);
+        Addr addr = gen_stack_reserve(dtype_size(dtype));
+        m_scope.create_var(op->op_l->typevar_name, addr, dtype);
+
+        // initializer provided? store into the newly created var
+        if (op->op_r) {
+            gen_mov(addrof(op->op_r), regtmp(), dtype_size(dtypeof(op->op_r)));
+            gen_mov(regtmp(), m_scope.find_var(op->op_l->typevar_name), dtype_size(dtype));
+            cleanup_dangling(op->op_r);
+            tighten_stack();
+        }
+        return;
+    } else if (op->op_l->type == NType::VAR) {
         // move result to var in op_l
         assert(m_scope.var_exists(op->op_l->var_name));
         // load with source size, store with dest size for automatic widening/narrowing
@@ -700,17 +710,16 @@ void Visitor::gen_continue() {
     }
 }
 
-void Visitor::gen_global_var(uptr<Node> &def) {
-    string name = def->def_obj->op_l->var_name;;
+void Visitor::gen_global_var(uptr<Node> &op) {
+    string name = op->op_l->typevar_name;
 
     // gen val string repr to be assigned
     string val;
-    if (def->def_obj->op_r) {
-        uptr<Node> &node = def->def_obj->op_r;
+    if (op->op_r) {
+        uptr<Node> &node = op->op_r;
         // galloc?
-        if (node->type == NType::FN) {
+        if (node->type == NType::FCALL) {
             gen_fcall(node);
-            // TODO make this less hacky
             val = "_galloc_array_"+std::to_string(m_galloc_id-1);
         } else {
             switch (dtypeof(node).base) {
@@ -720,7 +729,7 @@ void Visitor::gen_global_var(uptr<Node> &def) {
             }
         }
     } else {
-        switch (def->dtype.base) {
+        switch (dtypeof(op->op_l).base) {
         case DTypeBase::INT: val = "0"; break;
         case DTypeBase::BYTE: val = "0"; break;
         case DTypeBase::VOID: assert(false); break;
@@ -729,17 +738,18 @@ void Visitor::gen_global_var(uptr<Node> &def) {
 
     // gen .data asm
     // pointers always use .quad (8 bytes)
-    if (def->dtype.ptrcnt > 0) {
+    DType dtype = dtypeof(op->op_l);
+    if (dtype.ptrcnt > 0) {
         m_asm_data += name+": .quad "+val+"\n";
     } else {
-        switch (def->dtype.base) {
+        switch (dtype.base) {
         case DTypeBase::INT: m_asm_data += name+": .quad "+val+"\n"; break;
         case DTypeBase::BYTE: m_asm_data += name+": .byte "+val+"\n"; break;
         case DTypeBase::VOID: assert(false); break;
         }
     }
 
-    m_scope.create_var(name, Addr::global(name), def->dtype);
+    m_scope.create_var(name, Addr::global(name), dtype);
 }
 
 Addr Visitor::gen_stack_push(Addr src, int nbytes) {
@@ -861,20 +871,21 @@ void Visitor::gen_store_literal(unsigned char val, Addr reg) {
 
 Addr Visitor::addrof(uptr<Node> &node) {
     switch (node->type) {
-    case NType::FN: return node->_addr;
+    case NType::FCALL: return node->_addr;
     case NType::VAL: return node->_addr;
     case NType::VAR: return m_scope.find_var(node->var_name);
     case NType::BINOP: return node->_addr;
     case NType::UNOP: return node->_addr;
     case NType::STR: return node->_addr;
     case NType::CPD:
-    case NType::DEF:
+    case NType::FDEF:
     case NType::RET:
     case NType::IF:
     case NType::WHILE:
     case NType::DTYPE:
     case NType::BREAK:
     case NType::CONT:
+    case NType::TYPEVAR:
         break;
     }
 
@@ -884,22 +895,22 @@ Addr Visitor::addrof(uptr<Node> &node) {
 DType Visitor::dtypeof(uptr<Node> &node) {
     switch (node->type) {
     case NType::BINOP: return dtypeof(node->op_l);
-    case NType::DEF: return node->dtype;
-    case NType::FN: {
+    case NType::FDEF: return node->fdef_ret_dtype;
+    case NType::FCALL: {
         // handle builtin functions
-        if (node->fn_name == "sizeof") {
+        if (node->fcall_name == "sizeof") {
             return DType(DTypeBase::INT, 0);
-        } else if (node->fn_name == "syscall") {
+        } else if (node->fcall_name == "syscall") {
             return DType(DTypeBase::INT, 0);
-        } else if (node->fn_name == "stalloc") {
+        } else if (node->fcall_name == "stalloc") {
             return DType(DTypeBase::INT, 1);  // pointer
-        } else if (node->fn_name == "galloc") {
+        } else if (node->fcall_name == "galloc") {
             // returns pointer to the element type
-            DType elem_type = node->fn_args[1]->dtype_type;
+            DType elem_type = node->fcall_args[1]->dtype_type;
             elem_type.ptrcnt++;
             return elem_type;
         }
-        return m_scope.find_fn(node->fn_name).first;
+        return m_scope.find_fn(node->fcall_name).first;
     }
     case NType::UNOP: {
         DType dtype = dtypeof(node->unop_obj);
@@ -907,9 +918,10 @@ DType Visitor::dtypeof(uptr<Node> &node) {
         else if (node->unop_type == "&") dtype.ptrcnt++;
         return dtype;
     } break;
-    case NType::VAL: return node->dtype;
+    case NType::VAL: return node->val_dtype;
     case NType::VAR: return m_scope.find_var_dtype(node->var_name);
     case NType::DTYPE: return node->dtype_type;
+    case NType::TYPEVAR: return node->typevar_dtype;
     case NType::WHILE:
     case NType::STR:
     case NType::RET:

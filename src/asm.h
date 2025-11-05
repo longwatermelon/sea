@@ -35,7 +35,7 @@ public:
     void gen_break();
     void gen_continue();
 
-    void gen_global_var(uptr<Node> &def);
+    void gen_global_var(uptr<Node> &op);
 
     // push val to stack, track its offset in addr. addr is RBP rel
     Addr gen_stack_push(Addr src, int nbytes);

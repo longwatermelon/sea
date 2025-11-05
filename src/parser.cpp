@@ -116,22 +116,25 @@ uptr<Node> Parser::parse_cpd() {
 }
 
 uptr<Node> Parser::parse_int() {
-    uptr<Node> val = mkuq<Node>(NType::VAL, DType(DTypeBase::INT));
+    uptr<Node> val = mkuq<Node>(NType::VAL);
     val->val_int = std::stoll(curtok().val.c_str());
+    val->val_dtype = DType(DTypeBase::INT);
     advance(TType::INT);
     return val;
 }
 
 uptr<Node> Parser::parse_char() {
-    uptr<Node> val = mkuq<Node>(NType::VAL, DType(DTypeBase::BYTE));
+    uptr<Node> val = mkuq<Node>(NType::VAL);
     val->val_byte = (unsigned char)std::stoi(curtok().val.c_str());
+    val->val_dtype = DType(DTypeBase::BYTE);
     advance(TType::CHAR);
     return val;
 }
 
 uptr<Node> Parser::parse_byte() {
-    uptr<Node> val = mkuq<Node>(NType::VAL, DType(DTypeBase::BYTE));
+    uptr<Node> val = mkuq<Node>(NType::VAL);
     val->val_byte = (unsigned char)std::stoi(curtok().val.c_str());
+    val->val_dtype = DType(DTypeBase::BYTE);
     advance(TType::BYTE_LIT);
     return val;
 }
@@ -140,6 +143,7 @@ uptr<Node> Parser::parse_str() {
     uptr<Node> val = mkuq<Node>(NType::STR);
     val->str_val = curtok().val;
     val->str_id = m_label_id;
+    // TODO val_dtype
     m_label_id++;
     advance(TType::STR);
     return val;
@@ -165,19 +169,20 @@ uptr<Node> Parser::parse_id() {
     } else if (name == "fn") {
         return parse_fdef();
     } else if (name == "let") {
-        return parse_vardef();
+        // expect parse name:type = expr, BINOP
+        return parse_expr();
     } else if (name == "break") {
         return mkuq<Node>(NType::BREAK);
     } else if (name == "continue") {
         return mkuq<Node>(NType::CONT);
     }
 
-    // reference to some program-defined symbol
+    // must be reference to some program-defined symbol at this point
     uptr<Node> res;
     if (curtok().type == TType::LPAREN) {
         // function call
-        res = mkuq<Node>(NType::FN);
-        res->fn_name = name;
+        res = mkuq<Node>(NType::FCALL);
+        res->fcall_name = name;
 
         // args
         advance(TType::LPAREN);
@@ -189,18 +194,25 @@ uptr<Node> Parser::parse_id() {
             expr = parse_expr();
         }
         advance(TType::RPAREN);
-        res->fn_args = std::move(args);
+        res->fcall_args = std::move(args);
     } else {
         // variable
         res = mkuq<Node>(NType::VAR);
         res->var_name = name;
+
+        if (curtok().type == TType::COLON) {
+            advance(TType::COLON);
+            res = mkuq<Node>(NType::TYPEVAR);
+            res->typevar_name = name;
+            res->typevar_dtype = parse_dtype()->dtype_type;
+        }
     }
 
     return res;
 }
 
 uptr<Node> Parser::parse_dtype() {
-    // TODO pointers, generics
+    // TODO generics
     DType dtype;
     dtype.base = str2dtypebase(curtok().val);
     advance(TType::ID);
@@ -215,55 +227,29 @@ uptr<Node> Parser::parse_dtype() {
     return res;
 }
 
-uptr<Node> Parser::parse_vardef() {
-    uptr<Node> vardef = mkuq<Node>(NType::DEF);
-    vardef->def_obj = mkuq<Node>(NType::BINOP);
-    vardef->def_obj->op_type = "=";
-
-    // name
-    vardef->def_obj->op_l = parse_typed_var();
-    vardef->dtype = vardef->def_obj->op_l->dtype;
-
-    // rhs?
-    if (curtok().type == TType::OP && curtok().val == "=") {
-        // equal sign
-        assert(curtok().val=="=");
-        advance(TType::OP);
-
-        // rhs
-        vardef->def_obj->op_r = parse_expr();
-    }
-
-    return vardef;
-}
-
 uptr<Node> Parser::parse_fdef() {
-    uptr<Node> fdef = mkuq<Node>(NType::DEF);
-    fdef->def_obj = mkuq<Node>(NType::FN);
+    uptr<Node> fdef = mkuq<Node>(NType::FDEF);
 
     // name
-    fdef->def_obj->fn_name = curtok().val;
+    fdef->fdef_name = curtok().val;
     advance(TType::ID);
 
     // params
     advance(TType::LPAREN);
-    vec<uptr<Node>> params;
     while (curtok().type != TType::RPAREN) {
-        uptr<Node> param = parse_typed_var();
-        params.push_back(std::move(param));
+        fdef->fdef_params.push_back(parse_typevar());
 
         if (curtok().type == TType::COMMA) advance(TType::COMMA);
         else break;
     }
     advance(TType::RPAREN);
-    fdef->def_obj->fn_args = std::move(params);
 
     // return type
     advance(TType::ARROW);
-    fdef->dtype = parse_dtype()->dtype_type;
+    fdef->fdef_ret_dtype = parse_dtype()->dtype_type;
 
     // body
-    fdef->def_obj->fn_body = parse_expr();
+    fdef->fdef_body = parse_expr();
 
     return fdef;
 }
@@ -274,12 +260,12 @@ uptr<Node> Parser::parse_ret() {
     return res;
 }
 
-uptr<Node> Parser::parse_typed_var() {
-    uptr<Node> var = mkuq<Node>(NType::VAR);
-    var->var_name = curtok().val;
+uptr<Node> Parser::parse_typevar() {
+    uptr<Node> var = mkuq<Node>(NType::TYPEVAR);
+    var->typevar_name = curtok().val;
     advance(TType::ID);
     advance(TType::COLON);
-    var->dtype = parse_dtype()->dtype_type;
+    var->typevar_dtype = parse_dtype()->dtype_type;
     return var;
 }
 

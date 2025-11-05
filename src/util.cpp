@@ -23,8 +23,8 @@ string ntype2str(NType type) {
     switch(type) {
         case NType::CPD: return "CPD";
         case NType::VAL: return "VAL";
-        case NType::DEF: return "DEF";
-        case NType::FN: return "FN";
+        case NType::FDEF: return "FDEF";
+        case NType::FCALL: return "FCALL";
         case NType::VAR: return "VAR";
         case NType::RET: return "RET";
         case NType::BINOP: return "BINOP";

@@ -5,9 +5,10 @@
 enum class NType {
     CPD, // compound
     VAL, // value
-    DEF, // define
-    FN, // function
+    FCALL, // function
+    FDEF, // function def
     VAR, // variable
+    TYPEVAR, // typed var (name:type)
     RET, // return
     BINOP, // binary operation
     IF, // if statement
@@ -108,14 +109,16 @@ private:
 
 struct Node {
     Node()=default;
-    Node(NType type, DType dtype=DType()) : type(type), dtype(dtype) {}
+    Node(NType type) : type(type) {}
 
     NType type;
-    DType dtype;
     Addr _addr;
 
     // cpd
     vec<uptr<Node>> cpd_nodes;
+
+    // val dtype
+    DType val_dtype;
 
     // val: int (64-bit)
     ll val_int;
@@ -123,13 +126,19 @@ struct Node {
     // val: byte
     unsigned char val_byte;
 
-    // def
-    uptr<Node> def_obj;
+    // fdef
+    string fdef_name;
+    vec<uptr<Node>> fdef_params; // typed vars
+    uptr<Node> fdef_body;
+    DType fdef_ret_dtype;
 
-    // fn
-    string fn_name;
-    vec<uptr<Node>> fn_args;
-    uptr<Node> fn_body;
+    // fcall
+    string fcall_name;
+    vec<uptr<Node>> fcall_args;
+
+    // typevar
+    string typevar_name;
+    DType typevar_dtype;
 
     // var
     string var_name;
