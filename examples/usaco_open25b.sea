@@ -1,6 +1,7 @@
 #include "../lib/io.h"
 #include "../lib/malloc.h"
 #include "../lib/set.h"
+#include "../lib/map.h"
 
 fn lower_bound_int(arr:int*, n:int, x:int) -> int {
     let lo:int = 0;
@@ -38,20 +39,19 @@ fn present_erase(p:int*, pm:int*, x:int) -> void {
     *pm = m - 1;
 }
 
-fn change(cnt:int*, freq_cnt:int*, present:int*, pm:int*, freqs:Set**, x:int, c:int) -> void {
+fn change(cnt:int*, freq_mp:Map*, freqs:Set**, x:int, c:int) -> void {
     let cur:int = cnt[x];
-    freq_cnt[cur] = freq_cnt[cur] - 1;
-    if (cur>=1) {
-        if (freqs[cur]!=0) { set_erase(freqs[cur], x); }
-        if (freq_cnt[cur]==0) { present_erase(present, pm, cur); }
-    }
+    let curc:int = map_get(freq_mp, cur);
+    curc = curc - 1;
+    if (curc==0) { map_erase(freq_mp, cur); }
+    else { map_set(freq_mp, cur, curc); }
+    if (cur>=1) { if (freqs[cur]!=0) { set_erase(freqs[cur], x); } }
     let ncur:int = cur + c;
     cnt[x] = ncur;
-    freq_cnt[ncur] = freq_cnt[ncur] + 1;
+    let ncurc:int = map_get(freq_mp, ncur);
+    ncurc = ncurc + 1;
+    map_set(freq_mp, ncur, ncurc);
     if (ncur>=1) {
-        if (freq_cnt[ncur]==1) {
-            present_insert(present, pm, ncur);
-        }
         if (freqs[ncur]==0) { freqs[ncur] = set_new(); }
         set_insert(freqs[ncur], x);
     }
@@ -84,36 +84,19 @@ fn main() -> int {
         i = i + 1;
     }
 
-    let freq_cnt:int* = malloc((n+1)*sizeof(int));
-    i = 0;
-    while (i<=n) {
-        freq_cnt[i] = 0;
-        i = i + 1;
-    }
-
     let freqs:Set** = malloc((n+1)*sizeof(Set*));
     i = 0;
     while (i<=n) { freqs[i] = 0; i = i + 1; }
 
-    i = 1;
-    while (i<=n) {
-        let f:int = cnt[i];
-        freq_cnt[f] = freq_cnt[f] + 1;
-        i = i + 1;
-    }
+    let freq_mp:Map* = map_new();
 
     let distinct_freqs:int* = malloc((n+1)*sizeof(int));
     let m:int = 0;
     i = 1;
     while (i<=n) {
-        if (freq_cnt[i]>0) { distinct_freqs[m] = i; m = m + 1; }
-        i = i + 1;
-    }
-    i = 1;
-    while (i<=n) {
-        if (freq_cnt[i]>0) {
-            freqs[i] = set_new();
-        }
+        let f:int = cnt[i];
+        let cur:int = map_get(freq_mp, f);
+        map_set(freq_mp, f, cur+1);
         i = i + 1;
     }
     i = 1;
@@ -133,11 +116,20 @@ fn main() -> int {
         idx = idx - 1;
 
         let neg_one:int = 0 - 1;
-        change(cnt, freq_cnt, distinct_freqs, &m, freqs, a[idx], neg_one);
+        change(cnt, freq_mp, freqs, a[idx], neg_one);
         a[idx] = x;
-        change(cnt, freq_cnt, distinct_freqs, &m, freqs, a[idx], 1);
+        change(cnt, freq_mp, freqs, a[idx], 1);
 
         let ans:int = 0;
+        
+        let node:MapNode* = map_begin(freq_mp);
+        m = 0;
+        while (node!=0) {
+            let fk:int = map_node_key(node);
+            if (fk>0) { distinct_freqs[m] = fk; m = m + 1; }
+            node = map_next(node);
+        }
+
         if (m>0) {
             let mode_freq:int = distinct_freqs[m-1];
 
@@ -163,12 +155,10 @@ fn main() -> int {
             let l:int = 0;
             let r:int = m - 1;
             while (l<m) {
-                while (r-1>=0) {
-                    if (distinct_freqs[r-1] + distinct_freqs[l] >= mode_freq) {
-                        r = r - 1;
-                    } else {
-                        break;
-                    }
+                while (1) {
+                    if (r-1<0) { break; }
+                    if (distinct_freqs[r-1] + distinct_freqs[l] >= mode_freq) { r = r - 1; }
+                    else { break; }
                 }
                 let diff:int = max_freq[r] - min_freq[l];
                 if (diff<0) { diff = 0 - diff; }
