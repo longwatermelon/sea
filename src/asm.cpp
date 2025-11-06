@@ -291,10 +291,10 @@ void Visitor::gen_builtin_galloc(uptr<Node> &fcall) {
     DType type = fcall->fcall_args[1]->dtype_type;
     int bytes = (int)(cnt * dtype_size(type, m_sdefs));
 
-    // align to 8 bytes to ensure proper alignment for subsequent data items
+    // align to 8 bytes
     int aligned_bytes = bytes + ((8 - bytes%8) % 8);
 
-    // alloc space in BSS (uninitialized data)
+    // alloc space in bss (uninitialized data)
     string label = "_galloc_array_"+std::to_string(m_galloc_id);
     m_galloc_id++;
     m_asm_bss += label+": .zero "+std::to_string(aligned_bytes)+"\n";
@@ -514,9 +514,8 @@ void Visitor::gen_assign(uptr<Node> &op) {
         }
         return;
     } else if (op->op_l->type == NType::VAR) {
-        // move result to var in op_l
+        // regular var assignment
         assert(m_scope.var_exists(op->op_l->var_name));
-        // load with source size, store with dest size for automatic widening/narrowing
         gen_mov(addrof(op->op_r), regtmp(), dtype_size(dtypeof(op->op_r), m_sdefs));
         gen_mov(regtmp(), m_scope.find_var(op->op_l->var_name), dtype_size(dtypeof(op->op_l), m_sdefs));
         // gen_dubref_mov(addrof(op->op_r).repr(), m_scope.find_var(op->op_l->var_name).repr());
@@ -525,10 +524,9 @@ void Visitor::gen_assign(uptr<Node> &op) {
         cleanup_dangling(op->op_r);
         tighten_stack();
     } else if (op->op_l->type == NType::UNOP && op->op_l->unop_type == "*") {
-        // eval dereferenced object, get loc of it
+        // dereference assign
         gen_expr(op->op_l->unop_obj);
         gen_mov(addrof(op->op_l->unop_obj), regtmp(1), 8);  // pointer is always 8 bytes
-        // load with source size, store with dest size for automatic widening/narrowing
         gen_mov(addrof(op->op_r), regtmp(), dtype_size(dtypeof(op->op_r), m_sdefs));
 
         gen_mov(regtmp(), deref_reg(regtmp(1)), dtype_size(dtypeof(op->op_l), m_sdefs));
@@ -657,16 +655,18 @@ void Visitor::gen_getptr(uptr<Node> &op) {
     } else if (op->unop_obj->type == NType::UNOP && op->unop_obj->unop_type == "*") {
         // LVALUE DEREF
         gen_expr(op->unop_obj->unop_obj);
-        gen_mov(addrof(op->unop_obj->unop_obj), regtmp(), 8); // pointer is always 8 bytes
+        // 8 bytes: op->unop_obj->unop_obj is a ptr
+        gen_mov(addrof(op->unop_obj->unop_obj), regtmp(), 8);
     }
 
-    // pointers are always 8 bytes
+    // 8 bytes: returning a ptr
     op->_addr = gen_stack_push(regtmp(), 8);
 }
 
 void Visitor::gen_deref(uptr<Node> &op) {
     gen_expr(op->unop_obj);
-    gen_mov(addrof(op->unop_obj), regtmp(), 8);  // pointer is always 8 bytes
+    // 8 bytes: store address to be dereferenced
+    gen_mov(addrof(op->unop_obj), regtmp(), 8);
     // [cleanup]
     cleanup_dangling(op->unop_obj);
     tighten_stack();
@@ -764,7 +764,7 @@ void Visitor::gen_break() {
         throw std::runtime_error("break statement outside of loop");
     }
 
-    // restore stack to loop entry state before jumping
+    // restore stack to loop entry state
     int target_tos = m_loop_tos.back();
     int cur_sp = m_sp;
     while (cur_sp + 16 <= target_tos) {
@@ -786,7 +786,7 @@ void Visitor::gen_continue() {
         throw std::runtime_error("continue statement outside of loop");
     }
 
-    // restore stack to loop entry state before jumping
+    // restore stack to loop entry state
     int target_tos = m_loop_tos.back();
     int cur_sp = m_sp;
     while (cur_sp + 16 <= target_tos) {
@@ -1045,7 +1045,7 @@ DType Visitor::dtypeof(uptr<Node> &node) {
         } else if (node->fcall_name == "syscall") {
             return DType(DTypeBase::INT, 0);
         } else if (node->fcall_name == "stalloc") {
-            return DType(DTypeBase::INT, 1);  // pointer
+            return DType(DTypeBase::INT, 1);
         } else if (node->fcall_name == "galloc") {
             // returns pointer to the element type
             DType elem_type = node->fcall_args[1]->dtype_type;
