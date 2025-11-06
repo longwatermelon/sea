@@ -1,0 +1,27 @@
+#include "../lib/set.h"
+#include "../lib/io.h"
+
+fn main() -> int {
+    let s:Set* = set_new();
+
+    set_insert(s, 5);
+    set_insert(s, 1);
+    set_insert(s, 3);
+    set_insert(s, 3);
+    set_insert(s, 7);
+    set_insert(s, 2);
+
+    let r:int = 0;
+    r = r + set_size(s);
+    r = r + 10*set_contains(s, 7);
+    r = r + 100*set_contains(s, 4);
+    r = r + 1000*set_erase(s, 3);
+    r = r + 10000*set_erase(s, 3);
+    r = r + 10000*10*set_size(s);
+
+    set_free(s);
+    print_int(r);
+    flush_output();
+    return 0;
+}
+

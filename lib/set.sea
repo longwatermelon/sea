@@ -1,0 +1,101 @@
+#include "set.h"
+#include "malloc.h"
+
+fn lower_bound(arr:int*, n:int, x:int) -> int {
+    let lo:int = 0;
+    let hi:int = n;
+    while (lo<hi) {
+        let mid:int = lo + (hi - lo)/2;
+        if (arr[mid] < x) {
+            lo = mid + 1;
+        } else {
+            hi = mid;
+        }
+    }
+    return lo;
+}
+
+fn set_new() -> Set* {
+    let s:Set* = malloc(3*sizeof(int));
+    if (s==0) { return 0; }
+
+    (*s).cap = 8;
+    (*s).len = 0;
+    (*s).data = malloc(8*sizeof(int));
+    if ((*s).data==0) {
+        free(s);
+        return 0;
+    }
+    return s;
+}
+
+fn set_free(s:Set*) -> void {
+    if (s==0) { return 0; }
+    if ((*s).data!=0) { free((*s).data); }
+    free(s);
+}
+
+fn set_size(s:Set*) -> int {
+    if (s==0) { return 0; }
+    return (*s).len;
+}
+
+fn set_contains(s:Set*, x:int) -> int {
+    if (s==0) { return 0; }
+    let n:int = (*s).len;
+    let arr:int* = (*s).data;
+    let pos:int = lower_bound(arr, n, x);
+    if (pos<n && arr[pos]==x) { return 1; }
+    return 0;
+}
+
+fn set_insert(s:Set*, x:int) -> int {
+    if (s==0) { return 0; }
+    let n:int = (*s).len;
+    let cap:int = (*s).cap;
+    let arr:int* = (*s).data;
+
+    let pos:int = lower_bound(arr, n, x);
+    if (pos<n && arr[pos]==x) { return 0; }
+
+    if (n==cap) {
+        let new_cap:int = cap * 2;
+        let new_arr:int* = malloc(new_cap*sizeof(int));
+        if (new_arr==0) { return 0; }
+        if (n>0) {
+            let dstb:byte* = new_arr;
+            let srcb:byte* = arr;
+            memcpy(dstb, srcb, n*sizeof(int));
+        }
+        free(arr);
+        (*s).data = new_arr;
+        (*s).cap = new_cap;
+        arr = new_arr;
+        cap = new_cap;
+    }
+
+    let i:int = n;
+    while (i>pos) {
+        arr[i] = arr[i-1];
+        i = i - 1;
+    }
+    arr[pos] = x;
+    (*s).len = n + 1;
+    return 1;
+}
+
+fn set_erase(s:Set*, x:int) -> int {
+    if (s==0) { return 0; }
+    let n:int = (*s).len;
+    let arr:int* = (*s).data;
+    let pos:int = lower_bound(arr, n, x);
+    if (pos>=n || arr[pos]!=x) { return 0; }
+
+    let i:int = pos;
+    while (i+1<n) {
+        arr[i] = arr[i+1];
+        i = i + 1;
+    }
+    (*s).len = n - 1;
+    return 1;
+}
