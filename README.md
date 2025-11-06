@@ -12,7 +12,7 @@ C compiler spinoff, eventually aiming for a bootstrapping compiler. Generates x8
 ChatGPT/Claude's contributions:
 * `src/preprocessor.cpp`, `src/preprocessor.h`
 * All utility shell scripts
-* A lot of sea code & tests, and nearly all of the stdlib (in `lib/`)
+* A lot of `.sea` files: tests & examples & stdlib.
 
 The language features are documented in SPEC.md.
 
