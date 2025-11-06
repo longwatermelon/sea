@@ -1,7 +1,14 @@
+struct Node {
+    key:int,
+    color:int,
+    left:Node*,
+    right:Node*,
+    parent:Node*
+}
+
 struct Set {
-    cap:int,
     len:int,
-    data:int*
+    root:Node*
 }
 
 fn set_new() -> Set*;

@@ -1,6 +1,6 @@
 #include "../lib/io.h"
 #include "../lib/malloc.h"
-#include "../lib/heap.h"
+#include "../lib/set.h"
 
 fn lower_bound_int(arr:int*, n:int, x:int) -> int {
     let lo:int = 0;
@@ -38,22 +38,12 @@ fn present_erase(p:int*, pm:int*, x:int) -> void {
     *pm = m - 1;
 }
 
-fn heap_top_valid(h:Heap*, cnt:int*, f:int) -> int {
-    while (heap_size(h)>0) {
-        let t:int = heap_peek(h);
-        if (cnt[t]==f) { return t; }
-        heap_pop(h);
-    }
-    return 0;
-}
-
-fn change(cnt:int*, freq_cnt:int*, present:int*, pm:int*, min_heaps:Heap**, max_heaps:Heap**, x:int, c:int) -> void {
+fn change(cnt:int*, freq_cnt:int*, present:int*, pm:int*, freqs:Set**, x:int, c:int) -> void {
     let cur:int = cnt[x];
     freq_cnt[cur] = freq_cnt[cur] - 1;
     if (cur>=1) {
-        if (freq_cnt[cur]==0) {
-            present_erase(present, pm, cur);
-        }
+        if (freqs[cur]!=0) { set_erase(freqs[cur], x); }
+        if (freq_cnt[cur]==0) { present_erase(present, pm, cur); }
     }
     let ncur:int = cur + c;
     cnt[x] = ncur;
@@ -62,10 +52,8 @@ fn change(cnt:int*, freq_cnt:int*, present:int*, pm:int*, min_heaps:Heap**, max_
         if (freq_cnt[ncur]==1) {
             present_insert(present, pm, ncur);
         }
-        if (min_heaps[ncur]==0) { min_heaps[ncur] = heap_new(0); }
-        if (max_heaps[ncur]==0) { max_heaps[ncur] = heap_new(1); }
-        heap_push(min_heaps[ncur], x);
-        heap_push(max_heaps[ncur], x);
+        if (freqs[ncur]==0) { freqs[ncur] = set_new(); }
+        set_insert(freqs[ncur], x);
     }
 }
 
@@ -103,10 +91,9 @@ fn main() -> int {
         i = i + 1;
     }
 
-    let min_heaps:Heap** = malloc((n+1)*sizeof(Heap*));
-    let max_heaps:Heap** = malloc((n+1)*sizeof(Heap*));
+    let freqs:Set** = malloc((n+1)*sizeof(Set*));
     i = 0;
-    while (i<=n) { min_heaps[i] = 0; max_heaps[i] = 0; i = i + 1; }
+    while (i<=n) { freqs[i] = 0; i = i + 1; }
 
     i = 1;
     while (i<=n) {
@@ -125,8 +112,7 @@ fn main() -> int {
     i = 1;
     while (i<=n) {
         if (freq_cnt[i]>0) {
-            min_heaps[i] = heap_new(0);
-            max_heaps[i] = heap_new(1);
+            freqs[i] = set_new();
         }
         i = i + 1;
     }
@@ -134,8 +120,8 @@ fn main() -> int {
     while (i<=n) {
         let f:int = cnt[i];
         if (f>=1) {
-            heap_push(min_heaps[f], i);
-            heap_push(max_heaps[f], i);
+            if (freqs[f]==0) { freqs[f] = set_new(); }
+            set_insert(freqs[f], i);
         }
         i = i + 1;
     }
@@ -147,9 +133,9 @@ fn main() -> int {
         idx = idx - 1;
 
         let neg_one:int = 0 - 1;
-        change(cnt, freq_cnt, distinct_freqs, &m, min_heaps, max_heaps, a[idx], neg_one);
+        change(cnt, freq_cnt, distinct_freqs, &m, freqs, a[idx], neg_one);
         a[idx] = x;
-        change(cnt, freq_cnt, distinct_freqs, &m, min_heaps, max_heaps, a[idx], 1);
+        change(cnt, freq_cnt, distinct_freqs, &m, freqs, a[idx], 1);
 
         let ans:int = 0;
         if (m>0) {
@@ -161,8 +147,8 @@ fn main() -> int {
             i = 0;
             while (i<m) {
                 let f:int = distinct_freqs[i];
-                min_freq[i] = heap_top_valid(min_heaps[f], cnt, f);
-                max_freq[i] = heap_top_valid(max_heaps[f], cnt, f);
+                min_freq[i] = set_min(freqs[f]);
+                max_freq[i] = set_max(freqs[f]);
                 i = i + 1;
             }
 

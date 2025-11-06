@@ -26,13 +26,18 @@ for x in $(seq 1 15); do
   fi
 
   tmp=$(mktemp)
+
+  # Capture start time in milliseconds
+  start_ms=$(perl -MTime::HiRes=time -e 'printf "%.0f\n", time()*1000')
   "$EXE" < "$in" > "$tmp" || true
+  end_ms=$(perl -MTime::HiRes=time -e 'printf "%.0f\n", time()*1000')
+  elapsed_ms=$((end_ms - start_ms))
 
   if cmp -s "$tmp" "$exp"; then
-    echo "PASS"
+    echo "PASS (${elapsed_ms}ms)"
     passes=$((passes+1))
   else
-    echo "FAIL (showing first 100 diff lines)"
+    echo "FAIL (${elapsed_ms}ms, showing first 100 diff lines)"
     diff -u --strip-trailing-cr --speed-large-files "$exp" "$tmp" | sed -n '1,100p'
     fails=$((fails+1))
   fi

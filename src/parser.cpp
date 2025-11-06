@@ -340,6 +340,7 @@ uptr<Node> Parser::parse_unop() {
 
 uptr<Node> Parser::parse_sdef() {
     uptr<Node> sdef = mkuq<Node>(NType::SDEF);
+    m_sdefs.push_back(sdef.get());
 
     sdef->sdef_name = curtok().val;
     advance(TType::ID);
@@ -352,6 +353,5 @@ uptr<Node> Parser::parse_sdef() {
     }
     advance(TType::RBRACE);
 
-    m_sdefs.push_back(sdef.get());
     return sdef;
 }

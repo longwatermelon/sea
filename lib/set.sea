@@ -1,37 +1,234 @@
 #include "set.h"
 #include "malloc.h"
 
-fn lower_bound(arr:int*, n:int, x:int) -> int {
-    let lo:int = 0;
-    let hi:int = n;
-    while (lo<hi) {
-        let mid:int = lo + (hi - lo)/2;
-        if (arr[mid] < x) {
-            lo = mid + 1;
+fn node_color(n:Node*) -> int {
+    if (n==0) { return 0; }
+    return (*n).color;
+}
+
+fn set_node_color(n:Node*, c:int) -> void {
+    if (n==0) { return 0; }
+    (*n).color = c;
+}
+
+fn node_new(x:int) -> Node* {
+    let n:Node* = malloc(5*sizeof(int));
+    if (n==0) { return 0; }
+    (*n).key = x;
+    (*n).color = 1;
+    (*n).left = 0;
+    (*n).right = 0;
+    (*n).parent = 0;
+    return n;
+}
+
+fn left_rotate(s:Set*, x:Node*) -> void {
+    if (x==0) { return 0; }
+    let y:Node* = (*x).right;
+    if (y==0) { return 0; }
+    let yleft:Node* = (*y).left;
+    (*x).right = yleft;
+    if (yleft!=0) { (*yleft).parent = x; }
+    let p:Node* = (*x).parent;
+    (*y).parent = p;
+    if (p==0) {
+        (*s).root = y;
+    } else {
+        if (x==(*p).left) {
+            (*p).left = y;
         } else {
-            hi = mid;
+            (*p).right = y;
         }
     }
-    return lo;
+    (*y).left = x;
+    (*x).parent = y;
+}
+
+fn right_rotate(s:Set*, x:Node*) -> void {
+    if (x==0) { return 0; }
+    let y:Node* = (*x).left;
+    if (y==0) { return 0; }
+    let yright:Node* = (*y).right;
+    (*x).left = yright;
+    if (yright!=0) { (*yright).parent = x; }
+    let p:Node* = (*x).parent;
+    (*y).parent = p;
+    if (p==0) {
+        (*s).root = y;
+    } else {
+        if (x==(*p).left) {
+            (*p).left = y;
+        } else {
+            (*p).right = y;
+        }
+    }
+    (*y).right = x;
+    (*x).parent = y;
+}
+
+fn tree_min(n:Node*) -> Node* {
+    if (n==0) { return 0; }
+    let x:Node* = n;
+    while ((*x).left!=0) { x = (*x).left; }
+    return x;
+}
+
+fn tree_max(n:Node*) -> Node* {
+    if (n==0) { return 0; }
+    let x:Node* = n;
+    while ((*x).right!=0) { x = (*x).right; }
+    return x;
+}
+
+fn rb_insert_fix(s:Set*, z:Node*) -> void {
+    while (1) {
+        let p:Node* = 0;
+        if (z!=0) { p = (*z).parent; }
+        if (node_color(p) != 1) { break; }
+        let gp:Node* = 0;
+        if (p!=0) { gp = (*p).parent; }
+        if (gp==0) { break; }
+        if (p==(*gp).left) {
+            let y:Node* = (*gp).right;
+            if (node_color(y)==1) {
+                set_node_color(p, 0);
+                set_node_color(y, 0);
+                set_node_color(gp, 1);
+                z = gp;
+            } else {
+                if (z==(*p).right) {
+                    z = p;
+                    left_rotate(s, z);
+                    p = (*z).parent;
+                    if (p!=0) { gp = (*p).parent; }
+                }
+                set_node_color((*z).parent, 0);
+                if (gp!=0) { set_node_color(gp, 1); right_rotate(s, gp); }
+            }
+        } else {
+            let y2:Node* = (*gp).left;
+            if (node_color(y2)==1) {
+                set_node_color(p, 0);
+                set_node_color(y2, 0);
+                set_node_color(gp, 1);
+                z = gp;
+            } else {
+                if (z==(*p).left) {
+                    z = p;
+                    right_rotate(s, z);
+                    p = (*z).parent;
+                    if (p!=0) { gp = (*p).parent; }
+                }
+                set_node_color((*z).parent, 0);
+                if (gp!=0) { set_node_color(gp, 1); left_rotate(s, gp); }
+            }
+        }
+    }
+    if ((*s).root!=0) { set_node_color((*s).root, 0); }
+}
+
+fn transplant(s:Set*, u:Node*, v:Node*) -> void {
+    let p:Node* = (*u).parent;
+    if (p==0) {
+        (*s).root = v;
+    } else {
+        if (u==(*p).left) { (*p).left = v; }
+        else { (*p).right = v; }
+    }
+    if (v!=0) { (*v).parent = p; }
+}
+
+fn rb_delete_fix(s:Set*, x:Node*, x_parent:Node*) -> void {
+    while (x != (*s).root && node_color(x)==0) {
+        let xp:Node* = x_parent;
+        if (xp==0) { break; }
+        if (x==(*xp).left) {
+            let w:Node* = (*xp).right;
+            if (node_color(w)==1) {
+                set_node_color(w, 0);
+                set_node_color(xp, 1);
+                left_rotate(s, xp);
+                w = (*xp).right;
+            }
+            let wl:Node* = 0;
+            let wr:Node* = 0;
+            if (w!=0) { wl = (*w).left; wr = (*w).right; }
+            if (node_color(wl)==0 && node_color(wr)==0) {
+                set_node_color(w, 1);
+                x = xp;
+                x_parent = (*x).parent;
+            } else {
+                if (node_color(wr)==0) {
+                    set_node_color(wl, 0);
+                    set_node_color(w, 1);
+                    right_rotate(s, w);
+                    w = (*xp).right;
+                }
+                set_node_color(w, node_color(xp));
+                set_node_color(xp, 0);
+                let wrr:Node* = 0;
+                if (w!=0) { wrr = (*w).right; }
+                set_node_color(wrr, 0);
+                left_rotate(s, xp);
+                x = (*s).root;
+                x_parent = 0;
+            }
+        } else {
+            let w2:Node* = (*xp).left;
+            if (node_color(w2)==1) {
+                set_node_color(w2, 0);
+                set_node_color(xp, 1);
+                right_rotate(s, xp);
+                w2 = (*xp).left;
+            }
+            let w2l:Node* = 0;
+            let w2r:Node* = 0;
+            if (w2!=0) { w2l = (*w2).left; w2r = (*w2).right; }
+            if (node_color(w2l)==0 && node_color(w2r)==0) {
+                set_node_color(w2, 1);
+                x = xp;
+                x_parent = (*x).parent;
+            } else {
+                if (node_color(w2l)==0) {
+                    set_node_color(w2r, 0);
+                    set_node_color(w2, 1);
+                    left_rotate(s, w2);
+                    w2 = (*xp).left;
+                }
+                set_node_color(w2, node_color(xp));
+                set_node_color(xp, 0);
+                let w2l2:Node* = 0;
+                if (w2!=0) { w2l2 = (*w2).left; }
+                set_node_color(w2l2, 0);
+                right_rotate(s, xp);
+                x = (*s).root;
+                x_parent = 0;
+            }
+        }
+    }
+    set_node_color(x, 0);
 }
 
 fn set_new() -> Set* {
-    let s:Set* = malloc(3*sizeof(int));
+    let s:Set* = malloc(2*sizeof(int));
     if (s==0) { return 0; }
-
-    (*s).cap = 8;
     (*s).len = 0;
-    (*s).data = malloc(8*sizeof(int));
-    if ((*s).data==0) {
-        free(s);
-        return 0;
-    }
+    (*s).root = 0;
     return s;
+}
+
+fn free_nodes(n:Node*) -> void {
+    if (n==0) { return 0; }
+    let l:Node* = (*n).left;
+    let r:Node* = (*n).right;
+    if (l!=0) { free_nodes(l); }
+    if (r!=0) { free_nodes(r); }
+    free(n);
 }
 
 fn set_free(s:Set*) -> void {
     if (s==0) { return 0; }
-    if ((*s).data!=0) { free((*s).data); }
+    if ((*s).root!=0) { free_nodes((*s).root); }
     free(s);
 }
 
@@ -42,78 +239,93 @@ fn set_size(s:Set*) -> int {
 
 fn set_contains(s:Set*, x:int) -> int {
     if (s==0) { return 0; }
-    let n:int = (*s).len;
-    let arr:int* = (*s).data;
-    let pos:int = lower_bound(arr, n, x);
-    if (pos<n) {
-        if (arr[pos]==x) { return 1; }
+    let cur:Node* = (*s).root;
+    while (cur!=0) {
+        if (x<(*cur).key) { cur = (*cur).left; }
+        else if (x>(*cur).key) { cur = (*cur).right; }
+        else { return 1; }
     }
     return 0;
 }
 
 fn set_insert(s:Set*, x:int) -> int {
     if (s==0) { return 0; }
-    let n:int = (*s).len;
-    let cap:int = (*s).cap;
-    let arr:int* = (*s).data;
-
-    let pos:int = lower_bound(arr, n, x);
-    if (pos<n) {
-        if (arr[pos]==x) { return 0; }
+    let y:Node* = 0;
+    let cur:Node* = (*s).root;
+    while (cur!=0) {
+        y = cur;
+        if (x<(*cur).key) { cur = (*cur).left; }
+        else if (x>(*cur).key) { cur = (*cur).right; }
+        else { return 0; }
     }
-
-    if (n==cap) {
-        let new_cap:int = cap * 2;
-        let new_arr:int* = malloc(new_cap*sizeof(int));
-        if (new_arr==0) { return 0; }
-        if (n>0) {
-            let dstb:byte* = new_arr;
-            let srcb:byte* = arr;
-            memcpy(dstb, srcb, n*sizeof(int));
-        }
-        free(arr);
-        (*s).data = new_arr;
-        (*s).cap = new_cap;
-        arr = new_arr;
-        cap = new_cap;
-    }
-
-    let i:int = n;
-    while (i>pos) {
-        arr[i] = arr[i-1];
-        i = i - 1;
-    }
-    arr[pos] = x;
-    (*s).len = n + 1;
+    let z:Node* = node_new(x);
+    if (z==0) { return 0; }
+    (*z).parent = y;
+    if (y==0) { (*s).root = z; }
+    else if (x<(*y).key) { (*y).left = z; }
+    else { (*y).right = z; }
+    rb_insert_fix(s, z);
+    (*s).len = (*s).len + 1;
     return 1;
 }
 
 fn set_erase(s:Set*, x:int) -> int {
     if (s==0) { return 0; }
-    let n:int = (*s).len;
-    let arr:int* = (*s).data;
-    let pos:int = lower_bound(arr, n, x);
-    if (pos>=n) { return 0; }
-    if (arr[pos]!=x) { return 0; }
-
-    let i:int = pos;
-    while (i+1<n) {
-        arr[i] = arr[i+1];
-        i = i + 1;
+    let z:Node* = (*s).root;
+    while (z!=0) {
+        if (x<(*z).key) { z = (*z).left; }
+        else if (x>(*z).key) { z = (*z).right; }
+        else { break; }
     }
-    (*s).len = n - 1;
+    if (z==0) { return 0; }
+    let y:Node* = z;
+    let y_orig:int = node_color(y);
+    let xnode:Node* = 0;
+    let xparent:Node* = 0;
+    if ((*z).left==0) {
+        xnode = (*z).right;
+        xparent = (*z).parent;
+        transplant(s, z, (*z).right);
+    } else if ((*z).right==0) {
+        xnode = (*z).left;
+        xparent = (*z).parent;
+        transplant(s, z, (*z).left);
+    } else {
+        y = tree_min((*z).right);
+        y_orig = node_color(y);
+        xnode = (*y).right;
+        if ((*y).parent == z) {
+            xparent = y;
+            if (xnode!=0) { (*xnode).parent = y; }
+        } else {
+            xparent = (*y).parent;
+            transplant(s, y, (*y).right);
+            (*y).right = (*z).right;
+            if ((*y).right!=0) { (*(*y).right).parent = y; }
+        }
+        transplant(s, z, y);
+        (*y).left = (*z).left;
+        if ((*y).left!=0) { (*(*y).left).parent = y; }
+        (*y).color = (*z).color;
+    }
+    free(z);
+    (*s).len = (*s).len - 1;
+    if (y_orig==0) { rb_delete_fix(s, xnode, xparent); }
     return 1;
 }
 
 fn set_min(s:Set*) -> int {
     if (s==0) { return 0; }
     if ((*s).len==0) { return 0; }
-    return (*s).data[0];
+    let n:Node* = tree_min((*s).root);
+    if (n==0) { return 0; }
+    return (*n).key;
 }
 
 fn set_max(s:Set*) -> int {
     if (s==0) { return 0; }
-    let l:int = (*s).len;
-    if (l==0) { return 0; }
-    return (*s).data[l-1];
+    if ((*s).len==0) { return 0; }
+    let n:Node* = tree_max((*s).root);
+    if (n==0) { return 0; }
+    return (*n).key;
 }
