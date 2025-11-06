@@ -3,42 +3,6 @@
 #include "../lib/set.h"
 #include "../lib/map.h"
 
-fn lower_bound_int(arr:int*, n:int, x:int) -> int {
-    let lo:int = 0;
-    let hi:int = n;
-    while (lo<hi) {
-        let mid:int = lo + (hi - lo)/2;
-        if (arr[mid] < x) { lo = mid + 1; }
-        else { hi = mid; }
-    }
-    return lo;
-}
-
-fn present_insert(p:int*, pm:int*, x:int) -> void {
-    let m:int = *pm;
-    let pos:int = lower_bound_int(p, m, x);
-    let i:int = m;
-    while (i>pos) {
-        p[i] = p[i-1];
-        i = i - 1;
-    }
-    p[pos] = x;
-    *pm = m + 1;
-}
-
-fn present_erase(p:int*, pm:int*, x:int) -> void {
-    let m:int = *pm;
-    let pos:int = lower_bound_int(p, m, x);
-    if (pos>=m) { return 0; }
-    if (p[pos]!=x) { return 0; }
-    let i:int = pos;
-    while (i+1<m) {
-        p[i] = p[i+1];
-        i = i + 1;
-    }
-    *pm = m - 1;
-}
-
 fn change(cnt:int*, freq_mp:Map*, freqs:Set**, x:int, c:int) -> void {
     let cur:int = cnt[x];
     let curc:int = map_get(freq_mp, cur);
@@ -115,8 +79,7 @@ fn main() -> int {
         let x:int = read_int();
         idx = idx - 1;
 
-        let neg_one:int = 0 - 1;
-        change(cnt, freq_mp, freqs, a[idx], neg_one);
+        change(cnt, freq_mp, freqs, a[idx], 0-1);
         a[idx] = x;
         change(cnt, freq_mp, freqs, a[idx], 1);
 
