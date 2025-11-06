@@ -1,0 +1,116 @@
+#include "heap.h"
+#include "malloc.h"
+
+fn heap_cmp(h:Heap*, a:int, b:int) -> int {
+    if ((*h).is_max==1) {
+        if (a>b) { return 1; } else { return 0; }
+    } else {
+        if (a<b) { return 1; } else { return 0; }
+    }
+}
+
+fn heap_new(is_max:int) -> Heap* {
+    let h:Heap* = malloc(4*sizeof(int));
+    if (h==0) { return 0; }
+    (*h).cap = 8;
+    (*h).len = 0;
+    (*h).is_max = is_max;
+    (*h).data = malloc(8*sizeof(int));
+    if ((*h).data==0) {
+        free(h);
+        return 0;
+    }
+    return h;
+}
+
+fn heap_free(h:Heap*) -> void {
+    if (h==0) { return 0; }
+    if ((*h).data!=0) { free((*h).data); }
+    free(h);
+}
+
+fn heap_size(h:Heap*) -> int {
+    if (h==0) { return 0; }
+    return (*h).len;
+}
+
+fn heap_swap(arr:int*, i:int, j:int) -> void {
+    let t:int = arr[i];
+    arr[i] = arr[j];
+    arr[j] = t;
+}
+
+fn heap_sift_up(h:Heap*, i:int) -> void {
+    let arr:int* = (*h).data;
+    while (i>0) {
+        let p:int = (i - 1) / 2;
+        if (heap_cmp(h, arr[i], arr[p])) {
+            heap_swap(arr, i, p);
+            i = p;
+        } else {
+            break;
+        }
+    }
+}
+
+fn heap_sift_down(h:Heap*, i:int) -> void {
+    let n:int = (*h).len;
+    let arr:int* = (*h).data;
+    while (1) {
+        let l:int = 2*i + 1;
+        let r:int = 2*i + 2;
+        let best:int = i;
+        if (l<n) {
+            if (heap_cmp(h, arr[l], arr[best])) { best = l; }
+        }
+        if (r<n) {
+            if (heap_cmp(h, arr[r], arr[best])) { best = r; }
+        }
+        if (best==i) { break; }
+        heap_swap(arr, i, best);
+        i = best;
+    }
+}
+
+fn heap_ensure_cap(h:Heap*, need:int) -> void {
+    let cap:int = (*h).cap;
+    if (need<=cap) { return 0; }
+    let new_cap:int = cap * 2;
+    while (new_cap<need) { new_cap = new_cap * 2; }
+    let new_arr:int* = malloc(new_cap*sizeof(int));
+    if (new_arr==0) { return 0; }
+    let len:int = (*h).len;
+    if (len>0) {
+        let dstb:byte* = new_arr;
+        let srcb:byte* = (*h).data;
+        memcpy(dstb, srcb, len*sizeof(int));
+    }
+    free((*h).data);
+    (*h).data = new_arr;
+    (*h).cap = new_cap;
+}
+
+fn heap_peek(h:Heap*) -> int {
+    return (*h).data[0];
+}
+
+fn heap_push(h:Heap*, x:int) -> void {
+    let len:int = (*h).len;
+    heap_ensure_cap(h, len + 1);
+    let arr:int* = (*h).data;
+    arr[len] = x;
+    (*h).len = len + 1;
+    heap_sift_up(h, len);
+}
+
+fn heap_pop(h:Heap*) -> int {
+    if ((*h).len==0) { return 0; }
+    let arr:int* = (*h).data;
+    let res:int = arr[0];
+    let last_idx:int = (*h).len - 1;
+    arr[0] = arr[last_idx];
+    (*h).len = last_idx;
+    if (last_idx>0) { heap_sift_down(h, 0); }
+    return res;
+}
+

@@ -45,7 +45,9 @@ fn set_contains(s:Set*, x:int) -> int {
     let n:int = (*s).len;
     let arr:int* = (*s).data;
     let pos:int = lower_bound(arr, n, x);
-    if (pos<n && arr[pos]==x) { return 1; }
+    if (pos<n) {
+        if (arr[pos]==x) { return 1; }
+    }
     return 0;
 }
 
@@ -56,7 +58,9 @@ fn set_insert(s:Set*, x:int) -> int {
     let arr:int* = (*s).data;
 
     let pos:int = lower_bound(arr, n, x);
-    if (pos<n && arr[pos]==x) { return 0; }
+    if (pos<n) {
+        if (arr[pos]==x) { return 0; }
+    }
 
     if (n==cap) {
         let new_cap:int = cap * 2;
@@ -89,7 +93,8 @@ fn set_erase(s:Set*, x:int) -> int {
     let n:int = (*s).len;
     let arr:int* = (*s).data;
     let pos:int = lower_bound(arr, n, x);
-    if (pos>=n || arr[pos]!=x) { return 0; }
+    if (pos>=n) { return 0; }
+    if (arr[pos]!=x) { return 0; }
 
     let i:int = pos;
     while (i+1<n) {
@@ -98,4 +103,17 @@ fn set_erase(s:Set*, x:int) -> int {
     }
     (*s).len = n - 1;
     return 1;
+}
+
+fn set_min(s:Set*) -> int {
+    if (s==0) { return 0; }
+    if ((*s).len==0) { return 0; }
+    return (*s).data[0];
+}
+
+fn set_max(s:Set*) -> int {
+    if (s==0) { return 0; }
+    let l:int = (*s).len;
+    if (l==0) { return 0; }
+    return (*s).data[l-1];
 }

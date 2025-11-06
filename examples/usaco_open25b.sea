@@ -1,0 +1,203 @@
+#include "../lib/io.h"
+#include "../lib/malloc.h"
+#include "../lib/heap.h"
+
+fn lower_bound_int(arr:int*, n:int, x:int) -> int {
+    let lo:int = 0;
+    let hi:int = n;
+    while (lo<hi) {
+        let mid:int = lo + (hi - lo)/2;
+        if (arr[mid] < x) { lo = mid + 1; }
+        else { hi = mid; }
+    }
+    return lo;
+}
+
+fn present_insert(p:int*, pm:int*, x:int) -> void {
+    let m:int = *pm;
+    let pos:int = lower_bound_int(p, m, x);
+    let i:int = m;
+    while (i>pos) {
+        p[i] = p[i-1];
+        i = i - 1;
+    }
+    p[pos] = x;
+    *pm = m + 1;
+}
+
+fn present_erase(p:int*, pm:int*, x:int) -> void {
+    let m:int = *pm;
+    let pos:int = lower_bound_int(p, m, x);
+    if (pos>=m) { return 0; }
+    if (p[pos]!=x) { return 0; }
+    let i:int = pos;
+    while (i+1<m) {
+        p[i] = p[i+1];
+        i = i + 1;
+    }
+    *pm = m - 1;
+}
+
+fn heap_top_valid(h:Heap*, cnt:int*, f:int) -> int {
+    while (heap_size(h)>0) {
+        let t:int = heap_peek(h);
+        if (cnt[t]==f) { return t; }
+        heap_pop(h);
+    }
+    return 0;
+}
+
+fn change(cnt:int*, freq_cnt:int*, present:int*, pm:int*, min_heaps:Heap**, max_heaps:Heap**, x:int, c:int) -> void {
+    let cur:int = cnt[x];
+    freq_cnt[cur] = freq_cnt[cur] - 1;
+    if (cur>=1) {
+        if (freq_cnt[cur]==0) {
+            present_erase(present, pm, cur);
+        }
+    }
+    let ncur:int = cur + c;
+    cnt[x] = ncur;
+    freq_cnt[ncur] = freq_cnt[ncur] + 1;
+    if (ncur>=1) {
+        if (freq_cnt[ncur]==1) {
+            present_insert(present, pm, ncur);
+        }
+        if (min_heaps[ncur]==0) { min_heaps[ncur] = heap_new(0); }
+        if (max_heaps[ncur]==0) { max_heaps[ncur] = heap_new(1); }
+        heap_push(min_heaps[ncur], x);
+        heap_push(max_heaps[ncur], x);
+    }
+}
+
+fn main() -> int {
+    init_input();
+
+    let n:int = read_int();
+    let q:int = read_int();
+
+    let a:int* = malloc(n*sizeof(int));
+    let i:int = 0;
+    while (i<n) {
+        a[i] = read_int();
+        i = i + 1;
+    }
+
+    let cnt:int* = malloc((n+1)*sizeof(int));
+    i = 0;
+    while (i<=n) {
+        cnt[i] = 0;
+        i = i + 1;
+    }
+
+    i = 0;
+    while (i<n) {
+        let v:int = a[i];
+        cnt[v] = cnt[v] + 1;
+        i = i + 1;
+    }
+
+    let freq_cnt:int* = malloc((n+1)*sizeof(int));
+    i = 0;
+    while (i<=n) {
+        freq_cnt[i] = 0;
+        i = i + 1;
+    }
+
+    let min_heaps:Heap** = malloc((n+1)*sizeof(Heap*));
+    let max_heaps:Heap** = malloc((n+1)*sizeof(Heap*));
+    i = 0;
+    while (i<=n) { min_heaps[i] = 0; max_heaps[i] = 0; i = i + 1; }
+
+    i = 1;
+    while (i<=n) {
+        let f:int = cnt[i];
+        freq_cnt[f] = freq_cnt[f] + 1;
+        i = i + 1;
+    }
+
+    let distinct_freqs:int* = malloc((n+1)*sizeof(int));
+    let m:int = 0;
+    i = 1;
+    while (i<=n) {
+        if (freq_cnt[i]>0) { distinct_freqs[m] = i; m = m + 1; }
+        i = i + 1;
+    }
+    i = 1;
+    while (i<=n) {
+        if (freq_cnt[i]>0) {
+            min_heaps[i] = heap_new(0);
+            max_heaps[i] = heap_new(1);
+        }
+        i = i + 1;
+    }
+    i = 1;
+    while (i<=n) {
+        let f:int = cnt[i];
+        if (f>=1) {
+            heap_push(min_heaps[f], i);
+            heap_push(max_heaps[f], i);
+        }
+        i = i + 1;
+    }
+
+    let qq:int = q;
+    while (qq>0) {
+        let idx:int = read_int();
+        let x:int = read_int();
+        idx = idx - 1;
+
+        let neg_one:int = 0 - 1;
+        change(cnt, freq_cnt, distinct_freqs, &m, min_heaps, max_heaps, a[idx], neg_one);
+        a[idx] = x;
+        change(cnt, freq_cnt, distinct_freqs, &m, min_heaps, max_heaps, a[idx], 1);
+
+        let ans:int = 0;
+        if (m>0) {
+            let mode_freq:int = distinct_freqs[m-1];
+
+            let min_freq:int* = malloc(m*sizeof(int));
+            let max_freq:int* = malloc(m*sizeof(int));
+
+            i = 0;
+            while (i<m) {
+                let f:int = distinct_freqs[i];
+                min_freq[i] = heap_top_valid(min_heaps[f], cnt, f);
+                max_freq[i] = heap_top_valid(max_heaps[f], cnt, f);
+                i = i + 1;
+            }
+
+            i = m - 2;
+            while (i>=0) {
+                if (max_freq[i] < max_freq[i+1]) {
+                    max_freq[i] = max_freq[i+1];
+                }
+                i = i - 1;
+            }
+
+            let l:int = 0;
+            let r:int = m - 1;
+            while (l<m) {
+                while (r-1>=0) {
+                    if (distinct_freqs[r-1] + distinct_freqs[l] >= mode_freq) {
+                        r = r - 1;
+                    } else {
+                        break;
+                    }
+                }
+                let diff:int = max_freq[r] - min_freq[l];
+                if (diff<0) { diff = 0 - diff; }
+                if (diff>ans) { ans = diff; }
+                l = l + 1;
+            }
+            free(max_freq);
+            free(min_freq);
+        }
+        
+        print_int(ans);
+        print_char(10);
+        qq = qq - 1;
+    }
+
+    flush_output();
+    return 0;
+}

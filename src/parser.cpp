@@ -63,19 +63,35 @@ uptr<Node> Parser::parse_expr(int mn_prec) {
         return left;
     }
 
-    // indexing
-    while (curtok().type == TType::LBRACK) {
-        uptr<Node> res = mkuq<Node>(NType::UNOP);
-        res->unop_type = "*";
+    // handle . and [] repeatedly (a[b].c[d].e[f])
+    while (true) {
+        if (curtok().type == TType::OP && curtok().val == ".") {
+            uptr<Node> cur = mkuq<Node>(NType::BINOP);
+            cur->op_type = ".";
+            cur->op_l = std::move(left);
+            advance(TType::OP);
+            cur->op_r = mkuq<Node>(NType::VAR);
+            cur->op_r->var_name = curtok().val;
+            advance(TType::ID);
+            left = std::move(cur);
+            continue;
+        }
+        if (curtok().type == TType::LBRACK) {
+            uptr<Node> res = mkuq<Node>(NType::UNOP);
+            res->unop_type = "*";
 
-        res->unop_obj = mkuq<Node>(NType::BINOP);
-        res->unop_obj->op_type = "+";
-        res->unop_obj->op_l = std::move(left);
-        advance(TType::LBRACK);
-        res->unop_obj->op_r = parse_expr();
-        advance(TType::RBRACK);
+            res->unop_obj = mkuq<Node>(NType::BINOP);
+            res->unop_obj->op_type = "+";
+            res->unop_obj->op_l = std::move(left);
+            advance(TType::LBRACK);
+            res->unop_obj->op_r = parse_expr();
+            advance(TType::RBRACK);
 
-        left = std::move(res);
+            left = std::move(res);
+            continue;
+        }
+
+        break;
     }
 
     // binops
@@ -339,4 +355,3 @@ uptr<Node> Parser::parse_sdef() {
     m_sdefs.push_back(sdef.get());
     return sdef;
 }
-
