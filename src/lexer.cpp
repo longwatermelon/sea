@@ -80,6 +80,12 @@ vec<Token> Lexer::tokenize() {
             } else if (m_ind+1 < sz(m_prog) && c=='-' && m_prog[m_ind+1]=='>') {
                 op += '>';
                 advance();
+            } else if (m_ind+1 < sz(m_prog) && c=='/' && m_prog[m_ind+1] == '/') {
+                while (m_ind < sz(m_prog) && m_prog[m_ind] != '\n') {
+                    m_ind++;
+                }
+                m_ind++;
+                continue;
             }
 
             // potentially change type based on value
