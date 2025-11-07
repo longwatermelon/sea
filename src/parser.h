@@ -29,6 +29,7 @@ private:
 
     uptr<IfNode> parse_if();
     uptr<WhileNode> parse_while();
+    uptr<ForNode> parse_for();
 
     uptr<UnopNode> parse_unop();
 

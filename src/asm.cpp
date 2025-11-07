@@ -745,6 +745,60 @@ void Visitor::visit(WhileNode *node) {
     m_asm += end_label+":\n";
 }
 
+void Visitor::visit(ForNode *node) {
+    string start_label = ".L_start_" + std::to_string(node->id);
+    string end_label = ".L_end_" + std::to_string(node->id);
+
+    // init
+    m_scope.push_layer();
+    dispatch(node->init.get());
+
+    // save stack state for break/continue
+    m_loop_ids.push_back(node->id);
+    m_loop_tos.push_back(m_tos);
+
+    m_asm += start_label+":\n";
+
+    // cond
+    dispatch(node->cond.get());
+    gen_mov(addrof(node->cond.get()), regtmp(), dtype_size(dtypeof(node->cond.get()), m_sdefs));
+    // [cleanup] cond is dangling now
+    cleanup_dangling(node->cond.get());
+    tighten_stack();
+    // [/cleanup]
+    switch (m_arch) {
+    case Arch::x86_64: {
+        m_asm += "\ttest "+regtmp().repr(m_arch)+", "+regtmp().repr(m_arch)+"\n"
+                 "\tjz "+end_label+"\n";
+    } break;
+    case Arch::ARM64: {
+        m_asm += "\tcbz "+regtmp().repr(m_arch)+", "+end_label+"\n";
+    } break;
+    }
+
+    // body
+    dispatch(node->body.get());
+    cleanup_dangling(node->body.get());
+    tighten_stack();
+
+    // update
+    dispatch(node->upd.get());
+    cleanup_dangling(node->upd.get());
+
+    m_loop_tos.pop_back();
+    m_loop_ids.pop_back();
+
+    switch (m_arch) {
+    case Arch::x86_64: m_asm += "\tjmp "+start_label+"\n"; break;
+    case Arch::ARM64: m_asm += "\tb "+start_label+"\n"; break;
+    }
+    m_asm += end_label+":\n";
+
+    m_scope.pop_layer();
+    cleanup_dangling(node->init.get());
+    tighten_stack();
+}
+
 void Visitor::visit(BreakNode *_) {
     if (empty(m_loop_ids)) {
         throw std::runtime_error("break statement outside of loop");

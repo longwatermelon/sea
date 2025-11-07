@@ -176,6 +176,15 @@ public:
     int id;
 };
 
+class ForNode : public Node {
+public:
+    void accept(Visitor &v) override;
+
+    uptr<Node> init, cond, upd;
+    uptr<Node> body;
+    int id;
+};
+
 class DtypeNode : public Node {
 public:
     void accept(Visitor &v) override;

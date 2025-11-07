@@ -23,6 +23,7 @@ public:
     void visit(UnopNode *node);
     void visit(IfNode *node);
     void visit(WhileNode *node);
+    void visit(ForNode *node);
     void visit(TypevarNode *node);
     void visit(SdefNode *node);
     void visit(BreakNode *node);

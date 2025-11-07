@@ -13,6 +13,7 @@ void BinopNode::accept(Visitor &v) { v.visit(this); }
 void UnopNode::accept(Visitor &v) { v.visit(this); }
 void IfNode::accept(Visitor &v) { v.visit(this); }
 void WhileNode::accept(Visitor &v) { v.visit(this); }
+void ForNode::accept(Visitor &v) { v.visit(this); }
 void DtypeNode::accept(Visitor &v) { v.visit(this); }
 void SdefNode::accept(Visitor &v) { v.visit(this); }
 void BreakNode::accept(Visitor &v) { v.visit(this); }

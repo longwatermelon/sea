@@ -172,6 +172,8 @@ uptr<Node> Parser::parse_id() {
         return parse_if();
     } else if (name == "while") {
         return parse_while();
+    } else if (name == "for") {
+        return parse_for();
     } else if (name == "fn") {
         return parse_fdef();
     } else if (name == "let") {
@@ -315,6 +317,30 @@ uptr<WhileNode> Parser::parse_while() {
     // cond
     advance(TType::LPAREN);
     res->cond = parse_expr();
+    advance(TType::RPAREN);
+
+    // body
+    res->body = parse_expr();
+
+    return res;
+}
+
+uptr<ForNode> Parser::parse_for() {
+    auto res = mkuq<ForNode>();
+    res->id = m_label_id;
+    m_label_id++;
+
+    // init
+    advance(TType::LPAREN);
+    res->init = parse_expr();
+    advance(TType::SEMI);
+
+    // cond
+    res->cond = parse_expr();
+    advance(TType::SEMI);
+
+    // upd
+    res->upd = parse_expr();
     advance(TType::RPAREN);
 
     // body

@@ -1,0 +1,7 @@
+fn main() -> int {
+    let x:int = 0;
+    for (let i:int = 0; i < 5; i = i+1) {
+        x = x+i;
+    }
+    return x;
+}
