@@ -5,7 +5,7 @@
 FILE=examples/usaco_open25b.sea
 
 # Compile the sea file to assembly with bundled output
-./a.out "$FILE" lib/heap.sea lib/set.sea lib/io.sea lib/util.sea lib/malloc.sea --bundle -o .sea_out.s -arch "x86-64" --no-entry
+./a.out "$FILE" lib/heap.sea lib/set.sea lib/map.sea lib/io.sea lib/util.sea lib/malloc.sea --bundle -o .sea_out.s -arch "x86-64" --no-entry
 
 # Check if compilation was successful
 if [ $? -ne 0 ]; then
