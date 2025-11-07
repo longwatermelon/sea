@@ -1,7 +1,7 @@
 #include "util.h"
 
-let HEAP_CAP:int = 16777216;
-let HEAP:byte* = galloc(16777216, byte);
+let HEAP_CAP:int = 64777216;
+let HEAP:byte* = galloc(64777216, byte);
 let heap_top:int = 0;
 
 let ALIGN:int = 8;
