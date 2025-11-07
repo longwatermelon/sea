@@ -272,8 +272,17 @@ void Visitor::gen_builtin_galloc(FcallNode *fcall) {
     m_galloc_id++;
     m_asm_bss += label+": .zero "+std::to_string(aligned_bytes)+"\n";
 
-    // return addr
-    fcall->_addr = Addr::global(label);
+    // put the label's address into a register, then push that to stack
+    switch (m_arch) {
+    case Arch::x86_64: {
+        m_asm += "\tleaq "+label+"(%rip), "+regtmp().repr(m_arch)+"\n";
+    } break;
+    case Arch::ARM64: {
+        m_asm += "\tadrp "+regtmp().repr(m_arch)+", "+label+"@PAGE\n";
+        m_asm += "\tadd "+regtmp().repr(m_arch)+", "+regtmp().repr(m_arch)+", "+label+"@PAGEOFF\n";
+    } break;
+    }
+    fcall->_addr = gen_stack_push(regtmp(), 8);
 }
 
 void Visitor::visit(RetNode *ret) {

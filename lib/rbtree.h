@@ -9,7 +9,9 @@ struct RbNode {
 
 struct RbTree {
     len:int,
-    root:RbNode*
+    root:RbNode*,
+    min:RbNode*,
+    max:RbNode*
 }
 
 fn rbtree_new() -> RbTree*;
@@ -27,4 +29,3 @@ fn rbtree_begin(t:RbTree*) -> RbNode*;
 fn rbtree_next(n:RbNode*) -> RbNode*;
 fn rbtree_node_key(n:RbNode*) -> int;
 fn rbtree_node_val(n:RbNode*) -> int;
-

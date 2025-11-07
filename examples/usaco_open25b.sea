@@ -27,12 +27,13 @@ fn main() -> int {
     let n:int = read_int();
     let q:int = read_int();
 
-    let a:int* = malloc(n*sizeof(int));
+    // Use galloc for fixed-capacity arrays to avoid malloc overhead
+    let a:int* = galloc(200005, int);
     for (let i:int = 0; i < n; i = i + 1) {
         a[i] = read_int();
     }
 
-    let cnt:int* = malloc((n+1)*sizeof(int));
+    let cnt:int* = galloc(200005, int);
     for (let i:int = 0; i <= n; i = i + 1) {
         cnt[i] = 0;
     }
@@ -42,12 +43,15 @@ fn main() -> int {
         cnt[v] = cnt[v] + 1;
     }
 
-    let freqs:Set** = malloc((n+1)*sizeof(Set*));
+    let freqs:Set** = galloc(200005, Set*);
     for (let i:int = 0; i <= n; i = i + 1) { freqs[i] = 0; }
 
     let freq_mp:Map* = map_new();
 
-    let distinct_freqs:int* = malloc((n+1)*sizeof(int));
+    let distinct_freqs:int* = galloc(200005, int);
+    // Reuse these per query (upper bound is <= distinct_freqs length)
+    let min_freq:int* = galloc(200005, int);
+    let max_freq:int* = galloc(200005, int);
     let m:int = 0;
     for (let i:int = 1; i <= n; i = i + 1) {
         let f:int = cnt[i];
@@ -82,9 +86,6 @@ fn main() -> int {
         if (m>0) {
             let mode_freq:int = distinct_freqs[m-1];
 
-            let min_freq:int* = malloc(m*sizeof(int));
-            let max_freq:int* = malloc(m*sizeof(int));
-
             for (let i:int = 0; i < m; i = i + 1) {
                 let f:int = distinct_freqs[i];
                 min_freq[i] = set_min(freqs[f]);
@@ -108,8 +109,6 @@ fn main() -> int {
                 if (diff<0) { diff = 0 - diff; }
                 if (diff>ans) { ans = diff; }
             }
-            free(max_freq);
-            free(min_freq);
         }
         
         print_int(ans);

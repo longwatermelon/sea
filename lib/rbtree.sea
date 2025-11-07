@@ -207,10 +207,12 @@ fn rb_delete_fix(t:RbTree*, x:RbNode*, x_parent:RbNode*) -> void {
 }
 
 fn rbtree_new() -> RbTree* {
-    let t:RbTree* = malloc(2*sizeof(int));
+    let t:RbTree* = malloc(4*sizeof(int));
     if (t==0) { return 0; }
     (*t).len = 0;
     (*t).root = 0;
+    (*t).min = 0;
+    (*t).max = 0;
     return t;
 }
 
@@ -279,6 +281,22 @@ fn rbtree_set(t:RbTree*, k:int, v:int) -> int {
     else { (*y).right = z; }
     rb_insert_fix(t, z);
     (*t).len = (*t).len + 1;
+    // update cached min/max pointers without short-circuiting
+    if (y==0) {
+        (*t).min = z;
+        (*t).max = z;
+    } else {
+        let mn:RbNode* = (*t).min;
+        if (mn==0) { (*t).min = z; }
+        else {
+            if (k < (*mn).key) { (*t).min = z; }
+        }
+        let mx:RbNode* = (*t).max;
+        if (mx==0) { (*t).max = z; }
+        else {
+            if (k > (*mx).key) { (*t).max = z; }
+        }
+    }
     return 1;
 }
 
@@ -286,6 +304,10 @@ fn rbtree_erase(t:RbTree*, k:int) -> int {
     if (t==0) { return 0; }
     let z:RbNode* = find_node(t, k);
     if (z==0) { return 0; }
+    let was_min:int = 0;
+    let was_max:int = 0;
+    if ((*t).min == z) { was_min = 1; }
+    if ((*t).max == z) { was_max = 1; }
     let y:RbNode* = z;
     let y_orig:int = node_color(y);
     let xnode:RbNode* = 0;
@@ -319,29 +341,34 @@ fn rbtree_erase(t:RbTree*, k:int) -> int {
     free(z);
     (*t).len = (*t).len - 1;
     if (y_orig==0) { rb_delete_fix(t, xnode, xparent); }
+    // fix cached min/max
+    if ((*t).root==0) {
+        (*t).min = 0;
+        (*t).max = 0;
+    } else {
+        if (was_min==1) { (*t).min = tree_min((*t).root); }
+        if (was_max==1) { (*t).max = tree_max((*t).root); }
+    }
     return 1;
 }
 
 fn rbtree_min_key(t:RbTree*) -> int {
     if (t==0) { return 0; }
-    if ((*t).root==0) { return 0; }
-    let n:RbNode* = tree_min((*t).root);
+    let n:RbNode* = (*t).min;
     if (n==0) { return 0; }
     return (*n).key;
 }
 
 fn rbtree_max_key(t:RbTree*) -> int {
     if (t==0) { return 0; }
-    if ((*t).root==0) { return 0; }
-    let n:RbNode* = tree_max((*t).root);
+    let n:RbNode* = (*t).max;
     if (n==0) { return 0; }
     return (*n).key;
 }
 
 fn rbtree_begin(t:RbTree*) -> RbNode* {
     if (t==0) { return 0; }
-    if ((*t).root==0) { return 0; }
-    return tree_min((*t).root);
+    return (*t).min;
 }
 
 fn rbtree_next(n:RbNode*) -> RbNode* {
@@ -362,4 +389,3 @@ fn rbtree_next(n:RbNode*) -> RbNode* {
 
 fn rbtree_node_key(n:RbNode*) -> int { if (n==0) { return 0; } return (*n).key; }
 fn rbtree_node_val(n:RbNode*) -> int { if (n==0) { return 0; } return (*n).val; }
-
