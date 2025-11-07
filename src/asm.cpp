@@ -705,6 +705,10 @@ void Visitor::visit(IfNode *node) {
 void Visitor::visit(WhileNode *node) {
     string start_label = ".L_start_"+std::to_string(node->id);
     string end_label = ".L_end_"+std::to_string(node->id);
+    // for compatibility with for loop.
+    // ContinueNode expects to be able to jump to the upd expr in for loops
+    // so add a no-op upd section for while loops to make it compatible.
+    string upd_label = ".L_upd_" + std::to_string(node->id);
 
     // save stack state for break/continue
     m_loop_ids.push_back(node->id);
@@ -738,6 +742,7 @@ void Visitor::visit(WhileNode *node) {
     cleanup_dangling(node->body.get());
     tighten_stack();
     // [/cleanup]
+    m_asm += upd_label + ":\n";
     switch (m_arch) {
     case Arch::x86_64: m_asm += "\tjmp "+start_label+"\n"; break;
     case Arch::ARM64: m_asm += "\tb "+start_label+"\n"; break;
@@ -748,6 +753,7 @@ void Visitor::visit(WhileNode *node) {
 void Visitor::visit(ForNode *node) {
     string start_label = ".L_start_" + std::to_string(node->id);
     string end_label = ".L_end_" + std::to_string(node->id);
+    string upd_label = ".L_upd_" + std::to_string(node->id);
 
     // init
     m_scope.push_layer();
@@ -782,6 +788,7 @@ void Visitor::visit(ForNode *node) {
     tighten_stack();
 
     // update
+    m_asm += upd_label + ":\n";
     dispatch(node->upd.get());
     cleanup_dangling(node->upd.get());
 
@@ -838,8 +845,8 @@ void Visitor::visit(ContinueNode *_) {
     }
 
     switch (m_arch) {
-    case Arch::x86_64: m_asm += "\tjmp .L_start_" + std::to_string(m_loop_ids.back()) + "\n"; break;
-    case Arch::ARM64: m_asm += "\tb .L_start_" + std::to_string(m_loop_ids.back()) + "\n"; break;
+    case Arch::x86_64: m_asm += "\tjmp .L_upd_" + std::to_string(m_loop_ids.back()) + "\n"; break;
+    case Arch::ARM64: m_asm += "\tb .L_upd_" + std::to_string(m_loop_ids.back()) + "\n"; break;
     }
 }
 

@@ -16,10 +16,8 @@ fn main() -> int {
     let a:int = read_int();
     let b:int = read_int();
 
-    let i:int = 0;
-    while (i<n) {
+    for (let i:int = 0; i < n; i = i + 1) {
         c[i] = read_int();
-        i = i+1;
     }
 
     quicksort(c, n);
@@ -75,25 +73,19 @@ fn main() -> int {
     p = y2;
     k = d;
 
-    i = l;
-    while (i<ql) {
+    for (let i:int = l; i < ql; i = i + 1) {
         c[i] = c[i] + d;
-        i = i+1;
     }
 
-    i = ql;
-    while (i<=qr) {
+    for (let i:int = ql; i <= qr; i = i + 1) {
         if (qr - i < p) { c[i] = num + 1; }
         else { c[i] = num; }
-        i = i+1;
     }
 
     let ans:int = 0;
-    i = 0;
-    while (i<n) {
+    for (let i:int = 0; i < n; i = i + 1) {
         let v:int = c[i] % MOD;
         ans = (ans + (v*v)%MOD) % MOD;
-        i = i+1;
     }
 
     print_int(ans);
