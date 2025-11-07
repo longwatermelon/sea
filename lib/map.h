@@ -1,3 +1,5 @@
+// Underlying implementation uses the generic RB-tree.
+// Keep MapNode type for iteration signatures.
 struct MapNode {
     key:int,
     val:int,
@@ -7,9 +9,10 @@ struct MapNode {
     parent:MapNode*
 }
 
+#include "rbtree.h"
+
 struct Map {
-    len:int,
-    root:MapNode*
+    tree:RbTree*
 }
 
 fn map_new() -> Map*;
@@ -26,4 +29,3 @@ fn map_begin(m:Map*) -> MapNode*;
 fn map_next(n:MapNode*) -> MapNode*;
 fn map_node_key(n:MapNode*) -> int;
 fn map_node_val(n:MapNode*) -> int;
-

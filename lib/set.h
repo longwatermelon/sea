@@ -1,14 +1,8 @@
-struct Node {
-    key:int,
-    color:int,
-    left:Node*,
-    right:Node*,
-    parent:Node*
-}
+// Backed by a generic RB-tree. Keys are ints.
+#include "rbtree.h"
 
 struct Set {
-    len:int,
-    root:Node*
+    tree:RbTree*
 }
 
 fn set_new() -> Set*;
