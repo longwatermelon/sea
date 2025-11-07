@@ -24,7 +24,7 @@ void sea::compile(const string &path, const string &out, Arch arch) {
     uptr<Node> root = p.parse();
 
     Visitor vis(arch);
-    string prog_asm = vis.gen(root);
+    string prog_asm = vis.gen(root.get());
 
     std::ofstream ofs(out);
     ofs << prog_asm;

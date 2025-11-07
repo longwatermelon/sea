@@ -14,26 +14,25 @@ private:
 
     uptr<Node> parse_atom();
     uptr<Node> parse_expr(int mn_prec=0);
-    uptr<Node> parse_cpd();
+    uptr<CpdNode> parse_cpd();
 
-    uptr<Node> parse_int();
-    uptr<Node> parse_char();
-    uptr<Node> parse_byte();
-    uptr<Node> parse_str();
+    uptr<ValIntNode> parse_int();
+    uptr<ValByteNode> parse_char();
+    uptr<ValByteNode> parse_byte();
     uptr<Node> parse_id();
-    uptr<Node> parse_dtype();
+    uptr<DtypeNode> parse_dtype();
 
-    uptr<Node> parse_vardef();
-    uptr<Node> parse_fdef();
-    uptr<Node> parse_ret();
-    uptr<Node> parse_typevar();
+    uptr<BinopNode> parse_vardef();
+    uptr<FdefNode> parse_fdef();
+    uptr<RetNode> parse_ret();
+    uptr<TypevarNode> parse_typevar();
 
-    uptr<Node> parse_if();
-    uptr<Node> parse_while();
+    uptr<IfNode> parse_if();
+    uptr<WhileNode> parse_while();
 
-    uptr<Node> parse_unop();
+    uptr<UnopNode> parse_unop();
 
-    uptr<Node> parse_sdef();
+    uptr<SdefNode> parse_sdef();
 
 public:
     Token curtok() const {return m_toks[m_ind];}
@@ -44,5 +43,5 @@ private:
 
     static ll m_label_id;
 
-    vec<Node*> m_sdefs;
+    vec<SdefNode*> m_sdefs;
 };

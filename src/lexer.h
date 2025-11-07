@@ -14,7 +14,6 @@ public:
     vec<Token> tokenize();
     void advance();
     string collect_int();
-    string collect_str();
     string collect_id();
     string collect_char();
 };

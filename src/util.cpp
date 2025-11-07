@@ -1,6 +1,5 @@
 #include "util.h"
 #include "token.h"
-#include "node.h"
 #include <optional>
 
 string ttype2str(TType type) {
@@ -12,23 +11,8 @@ string ttype2str(TType type) {
         case TType::RBRACE: return "}";
         case TType::SEMI: return ";";
         case TType::INT: return "INT";
-        case TType::STR: return "STR";
         case TType::COMMA: return ",";
         case TType::OP: return "OP";
-        default: return "UNKNOWN";
-    }
-}
-
-string ntype2str(NType type) {
-    switch(type) {
-        case NType::CPD: return "CPD";
-        case NType::VAL: return "VAL";
-        case NType::FDEF: return "FDEF";
-        case NType::FCALL: return "FCALL";
-        case NType::VAR: return "VAR";
-        case NType::RET: return "RET";
-        case NType::BINOP: return "BINOP";
-        case NType::IF: return "IF";
         default: return "UNKNOWN";
     }
 }

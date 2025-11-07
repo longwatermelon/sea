@@ -43,10 +43,7 @@ inline int precedence(const string &op) {
 }
 
 enum class TType;
-enum class NType;
-
 string ttype2str(TType type);
-string ntype2str(NType type);
 
 enum class Arch {
     x86_64,

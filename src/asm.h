@@ -6,38 +6,50 @@ class Visitor {
 public:
     Visitor(Arch arch) : m_arch(arch) {}
 
-    string gen(uptr<Node> &root);
-    void gen_expr(uptr<Node> &expr);
+    // template <typename NodeT>
+    // void visit(NodeT *) {
+    //     throw std::logic_error("Visitor::visit missing handler for node type");
+    // }
+
+    string gen(Node *root);
+
+    void visit(CpdNode *node);
+    void visit(FdefNode *node);
+    void visit(FcallNode *node);
+    void visit(RetNode *node);
+    void visit(ValIntNode *node);
+    void visit(ValByteNode *node);
+    void visit(BinopNode *node);
+    void visit(UnopNode *node);
+    void visit(IfNode *node);
+    void visit(WhileNode *node);
+    void visit(TypevarNode *node);
+    void visit(SdefNode *node);
+    void visit(BreakNode *node);
+    void visit(ContinueNode *node);
+
+    // no-ops
+    void visit(VarNode *) {}
+    void visit(DtypeNode *) {}
+
     // delete node's _addr in scope's stack tracking
-    void cleanup_dangling(uptr<Node> &node);
+    void cleanup_dangling(Node *node);
     // adjust m_rsp according to the addresses currently necessary in m_scope
     void tighten_stack();
 
-    void gen_cpd(uptr<Node> &cpd);
-    void gen_fdef(uptr<Node> &fdef);
-    void gen_fcall(uptr<Node> &fcall);
-    void gen_builtin_syscall(uptr<Node> &fcall);
-    void gen_builtin_stalloc(uptr<Node> &fcall);
-    void gen_builtin_sizeof(uptr<Node> &fcall);
-    void gen_builtin_galloc(uptr<Node> &fcall);
-    void gen_ret(uptr<Node> &ret);
-    void gen_val(uptr<Node> &val);
+    void gen_builtin_syscall(FcallNode *fcall);
+    void gen_builtin_stalloc(FcallNode *fcall);
+    void gen_builtin_sizeof(FcallNode *fcall);
+    void gen_builtin_galloc(FcallNode *fcall);
 
-    void gen_binop(uptr<Node> &op);
-    void gen_assign(uptr<Node> &op);
-    void gen_memb_access(uptr<Node> &op);
-    Addr find_memb_addr(uptr<Node> &dot);
+    void gen_assign(BinopNode *op);
+    void gen_memb_access(BinopNode *op);
+    Addr find_memb_addr(BinopNode *dot);
 
-    void gen_unop(uptr<Node> &op);
-    void gen_getptr(uptr<Node> &op);
-    void gen_deref(uptr<Node> &op);
+    void gen_getptr(UnopNode *op);
+    void gen_deref(UnopNode *op);
 
-    void gen_if(uptr<Node> &node);
-    void gen_while(uptr<Node> &node);
-    void gen_break();
-    void gen_continue();
-
-    void gen_global_var(uptr<Node> &op);
+    void gen_global_var(BinopNode *op);
 
     // push val to stack, track its offset in addr. addr is RBP rel
     Addr gen_stack_push(Addr src, int nbytes);
@@ -50,8 +62,8 @@ public:
     void gen_store_literal(ll val, Addr reg);
     void gen_store_literal(unsigned char val, Addr reg);
 
-    Addr addrof(uptr<Node> &node);
-    DType dtypeof(uptr<Node> &node);
+    Addr addrof(Node *node);
+    DType dtypeof(Node *node);
 
     Addr regtmp(int n=0) {
         switch (m_arch) {
@@ -108,12 +120,14 @@ public:
     }
 
 private:
+    void dispatch(Node *node);
+
     string m_asm, m_asm_data, m_asm_bss;
     // current top of stack, actual stack pointer (capacity)
     int m_tos=0, m_sp=0;
 
     Scope m_scope;
-    vec<Node*> m_sdefs;
+    vec<SdefNode*> m_sdefs;
 
     static ll m_galloc_id;
 

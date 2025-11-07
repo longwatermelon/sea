@@ -11,7 +11,6 @@ enum class TType {
     RBRACK,
     SEMI,
     INT,
-    STR,
     CHAR,
     BYTE_LIT,
     COMMA,

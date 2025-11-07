@@ -36,8 +36,6 @@ vec<Token> Lexer::tokenize() {
             }
         } else if (std::isalpha(c) || c == '_') {
             tokens.push_back(Token(TType::ID, collect_id(), m_line));
-        } else if (c == '"') {
-            tokens.push_back(Token(TType::STR, collect_str(), m_line));
         } else if (c == '\'') {
             tokens.push_back(Token(TType::CHAR, collect_char(), m_line));
         } else if (c == '(') {
@@ -111,22 +109,6 @@ string Lexer::collect_int() {
         result += m_prog[m_ind];
         advance();
     }
-    return result;
-}
-
-string Lexer::collect_str() {
-    string result;
-    // opening quote
-    advance();
-
-    // string contents
-    while (m_ind < sz(m_prog) && m_prog[m_ind] != '"') {
-        result += m_prog[m_ind];
-        advance();
-    }
-
-    // closing quote
-    if (m_ind < sz(m_prog)) advance();
     return result;
 }
 

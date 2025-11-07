@@ -3,25 +3,6 @@
 #include <stdexcept>
 #include <algorithm>
 
-enum class NType {
-    CPD, // compound
-    VAL, // value
-    FCALL, // function
-    FDEF, // function def
-    VAR, // variable
-    TYPEVAR, // typed var (name:type)
-    RET, // return
-    BINOP, // binary operation
-    IF, // if statement
-    UNOP, // unary operator
-    WHILE, // while loop
-    STR, // string literal
-    DTYPE, // dtype, needed for recognizing "int*" as an expression
-    BREAK, // break
-    CONT, // continue
-    SDEF, // struct def
-};
-
 enum class DTypeBase {
     INT,
     BYTE,
@@ -39,25 +20,7 @@ struct DType {
     DType(DTypeBase base, string struct_name, int ptrcnt=0) : base(base), struct_name(struct_name), ptrcnt(ptrcnt) {}
 };
 
-struct Node;
-
-bool is_dtypebase(const string &s, vec<Node*> &sdefs);
-DTypeBase str2dtypebase(const string &s, vec<Node*> &sdefs);
-
-inline int find_struct_size(DType type, vec<Node*> &sdefs);
-
-inline int dtype_size(DType type, vec<Node*> &sdefs) {
-    if (type.ptrcnt>0) {
-        return 8;
-    }
-
-    switch (type.base) {
-    case DTypeBase::INT: return 8;
-    case DTypeBase::BYTE: return 1;
-    case DTypeBase::VOID: return 0;
-    case DTypeBase::STRUCT: return find_struct_size(type, sdefs);
-    }
-}
+class Node;
 
 enum class AType {
     RBP,
@@ -108,115 +71,139 @@ private:
     Addr(AType t, const string& name) : type(t), rip_addr(t==AType::RIP ? name : ""), reg_name(t==AType::REG ? name : "") {}
 };
 
-struct Node {
-    Node()=default;
-    Node(NType type) : type(type) {}
+class Visitor;
 
-    NType type;
+class Node {
+public:
+    virtual ~Node() = default;
+    virtual void accept(Visitor &v) = 0;
+
     Addr _addr;
-
-    // cpd
-    vec<uptr<Node>> cpd_nodes;
-
-    // val dtype
-    DType val_dtype;
-
-    // val: int (64-bit)
-    ll val_int;
-
-    // val: byte
-    unsigned char val_byte;
-
-    // fdef
-    string fdef_name;
-    vec<uptr<Node>> fdef_params; // typed vars
-    uptr<Node> fdef_body;
-    DType fdef_ret_dtype;
-
-    // fcall
-    string fcall_name;
-    vec<uptr<Node>> fcall_args;
-
-    // typevar
-    string typevar_name;
-    DType typevar_dtype;
-
-    // var
-    string var_name;
-
-    // ret
-    uptr<Node> ret_val;
-
-    // binop
-    uptr<Node> op_l, op_r;
-    string op_type;
-
-    // if
-    uptr<Node> if_cond, if_body, if_else;
-    int if_id;
-
-    // unop
-    uptr<Node> unop_obj;
-    string unop_type;
-
-    // while
-    uptr<Node> while_cond, while_body;
-    int while_id;
-
-    // string
-    string str_val;
-    int str_id;
-
-    // dtype
-    DType dtype_type;
-
-    // sdef
-    string sdef_name;
-    vec<uptr<Node>> sdef_membs; // all typevars
 };
 
-inline int find_struct_size(DType type, vec<Node*> &sdefs) {
-    for (auto &sdef : sdefs) {
-        if (sdef->sdef_name == type.struct_name) {
-            int ans = 0;
-            for (auto &typevar : sdef->sdef_membs) {
-                ans += dtype_size(typevar->typevar_dtype, sdefs);
-            }
-            return ans;
-        }
-    }
+class CpdNode : public Node {
+public:
+    void accept(Visitor &v) override;
 
-    throw std::runtime_error("[node.h find_struct_size] unreachable - requested dtype doesn't exist as a struct definition in sdefs");
-}
+    vec<uptr<Node>> nodes;
+};
 
-inline int find_member_offset(DType type, string name, vec<Node*> &sdefs) {
-    for (auto &sdef : sdefs) {
-        if (sdef->sdef_name == type.struct_name) {
-            int offset = 0;
-            for (int i = 0; i < sz(sdef->sdef_membs); ++i) {
-                if (sdef->sdef_membs[i]->typevar_name == name) {
-                    return offset;
-                }
+class ValIntNode : public Node {
+public:
+    void accept(Visitor &v) override;
 
-                offset += dtype_size(sdef->sdef_membs[i]->typevar_dtype, sdefs);
-            }
-        }
-    }
+    ll value;
+};
 
-    throw std::runtime_error("[node.h find_member_offset] unreachable - requested dtype doesn't exist as a struct definition in sdefs");
-}
+class ValByteNode : public Node {
+public:
+    void accept(Visitor &v) override;
 
-inline bool is_dtypebase(const string &s, vec<Node*> &sdefs) {
-    return s == "int" || s == "void" || s == "byte" || std::find_if(begin(sdefs), end(sdefs), [&](Node *sdef){return sdef->sdef_name == s;}) != end(sdefs);
-}
+    unsigned char value;
+};
 
-inline DTypeBase str2dtypebase(const string &s, vec<Node*> &sdefs) {
-    if (s=="int") return DTypeBase::INT;
-    else if (s=="byte") return DTypeBase::BYTE;
-    else if (s=="void") return DTypeBase::VOID;
-    else if (std::find_if(begin(sdefs), end(sdefs), [&](Node *sdef){return sdef->sdef_name == s;}) != end(sdefs)) return DTypeBase::STRUCT;
-    else throw std::runtime_error("str2dtype failed");
-    // TODO better error
-}
+class TypevarNode : public Node {
+public:
+    void accept(Visitor &v) override;
 
+    DType dtype;
+    string name;
+};
 
+class FdefNode : public Node {
+public:
+    void accept(Visitor &v) override;
+
+    string name;
+    vec<uptr<TypevarNode>> params;
+    uptr<Node> body;
+    DType ret_dtype;
+};
+
+class FcallNode : public Node {
+public:
+    void accept(Visitor &v) override;
+
+    string name;
+    vec<uptr<Node>> args;
+};
+
+class VarNode : public Node {
+public:
+    void accept(Visitor &v) override;
+
+    string name;
+};
+
+class RetNode : public Node {
+public:
+    void accept(Visitor &v) override;
+
+    uptr<Node> expr;
+};
+
+class BinopNode : public Node {
+public:
+    void accept(Visitor &v) override;
+
+    uptr<Node> l,r;
+    string type;
+};
+
+class UnopNode : public Node {
+public:
+    void accept(Visitor &v) override;
+
+    uptr<Node> obj;
+    string type;
+};
+
+class IfNode : public Node {
+public:
+    void accept(Visitor &v) override;
+
+    uptr<Node> cond;
+    uptr<Node> body, else_;
+    int id;
+};
+
+class WhileNode : public Node {
+public:
+    void accept(Visitor &v) override;
+
+    uptr<Node> cond;
+    uptr<Node> body;
+    int id;
+};
+
+class DtypeNode : public Node {
+public:
+    void accept(Visitor &v) override;
+
+    DType dtype;
+};
+
+class SdefNode : public Node {
+public:
+    void accept(Visitor &v) override;
+
+    string name;
+    vec<uptr<TypevarNode>> membs;
+};
+
+class BreakNode : public Node {
+public:
+    void accept(Visitor &v) override;
+};
+
+class ContinueNode : public Node {
+public:
+    void accept(Visitor &v) override;
+};
+
+bool is_dtypebase(const string &s, vec<SdefNode*> &sdefs);
+DTypeBase str2dtypebase(const string &s, vec<SdefNode*> &sdefs);
+int find_struct_size(DType type, vec<SdefNode*> &sdefs);
+int dtype_size(DType type, vec<SdefNode*> &sdefs);
+int find_struct_size(DType type, vec<SdefNode*> &sdefs);
+int find_member_offset(DType type, string name, vec<SdefNode*> &sdefs);
