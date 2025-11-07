@@ -1,23 +1,22 @@
 #include "../lib/io.h"
 #include "../lib/malloc.h"
-#include "../lib/set.h"
-#include "../lib/map.h"
+#include "../lib/rbtree.h"
 
-fn change(cnt:int*, freq_mp:Map*, freqs:Set**, x:int, c:int) -> void {
+fn change(cnt:int*, freq_mp:RbTree*, freqs:RbTree**, x:int, c:int) -> void {
     let cur:int = cnt[x];
-    let curc:int = map_get(freq_mp, cur);
+    let curc:int = rbtree_get(freq_mp, cur);
     curc = curc - 1;
-    if (curc==0) { map_erase(freq_mp, cur); }
-    else { map_set(freq_mp, cur, curc); }
-    if (cur>=1) { if (freqs[cur]!=0) { set_erase(freqs[cur], x); } }
+    if (curc==0) { rbtree_erase(freq_mp, cur); }
+    else { rbtree_set(freq_mp, cur, curc); }
+    if (cur>=1) { if (freqs[cur]!=0) { rbtree_erase(freqs[cur], x); } }
     let ncur:int = cur + c;
     cnt[x] = ncur;
-    let ncurc:int = map_get(freq_mp, ncur);
+    let ncurc:int = rbtree_get(freq_mp, ncur);
     ncurc = ncurc + 1;
-    map_set(freq_mp, ncur, ncurc);
+    rbtree_set(freq_mp, ncur, ncurc);
     if (ncur>=1) {
-        if (freqs[ncur]==0) { freqs[ncur] = set_new(); }
-        set_insert(freqs[ncur], x);
+        if (freqs[ncur]==0) { freqs[ncur] = rbtree_new(); }
+        rbtree_set(freqs[ncur], x, 1);
     }
 }
 
@@ -43,10 +42,10 @@ fn main() -> int {
         cnt[v] = cnt[v] + 1;
     }
 
-    let freqs:Set** = galloc(200005, Set*);
+    let freqs:RbTree** = galloc(200005, RbTree*);
     for (let i:int = 0; i <= n; i = i + 1) { freqs[i] = 0; }
 
-    let freq_mp:Map* = map_new();
+    let freq_mp:RbTree* = rbtree_new();
 
     let distinct_freqs:int* = galloc(200005, int);
     // Reuse these per query (upper bound is <= distinct_freqs length)
@@ -55,14 +54,14 @@ fn main() -> int {
     let m:int = 0;
     for (let i:int = 1; i <= n; i = i + 1) {
         let f:int = cnt[i];
-        let cur:int = map_get(freq_mp, f);
-        map_set(freq_mp, f, cur+1);
+        let cur:int = rbtree_get(freq_mp, f);
+        rbtree_set(freq_mp, f, cur+1);
     }
     for (let i:int = 1; i <= n; i = i + 1) {
         let f:int = cnt[i];
         if (f>=1) {
-            if (freqs[f]==0) { freqs[f] = set_new(); }
-            set_insert(freqs[f], i);
+            if (freqs[f]==0) { freqs[f] = rbtree_new(); }
+            rbtree_set(freqs[f], i, 1);
         }
     }
 
@@ -78,8 +77,8 @@ fn main() -> int {
         let ans:int = 0;
         
         m = 0;
-        for (let node:MapNode* = map_begin(freq_mp); node != 0; node = map_next(node)) {
-            let fk:int = map_node_key(node);
+        for (let node:RbNode* = rbtree_begin(freq_mp); node != 0; node = rbtree_next(node)) {
+            let fk:int = rbtree_node_key(node);
             if (fk>0) { distinct_freqs[m] = fk; m = m + 1; }
         }
 
@@ -88,8 +87,8 @@ fn main() -> int {
 
             for (let i:int = 0; i < m; i = i + 1) {
                 let f:int = distinct_freqs[i];
-                min_freq[i] = set_min(freqs[f]);
-                max_freq[i] = set_max(freqs[f]);
+                min_freq[i] = rbtree_min_key(freqs[f]);
+                max_freq[i] = rbtree_max_key(freqs[f]);
             }
 
             for (let i:int = m - 2; i >= 0; i = i - 1) {

@@ -8,3 +8,5 @@ examples/prog-gcc
 sea.out
 .sea
 .DS_STORE
+out.cpp
+out

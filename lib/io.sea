@@ -1,10 +1,10 @@
 let READ_BUFFER_CAP:int = 5242880;
-let WRITE_BUFFER_CAP:int = 32768;
+let WRITE_BUFFER_CAP:int = 65536;
 
 let input_buffer:byte* = galloc(5242880, byte);
 let input_index:int = 0;
 
-let output_buffer:byte* = galloc(32768, byte);
+let output_buffer:byte* = galloc(65536, byte);
 let output_index:int = 0;
 
 fn init_input() -> void {
