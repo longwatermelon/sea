@@ -120,6 +120,19 @@ public:
         }
     }
 
+    // returns # bytes sp gets tightened by
+    int tighten_sp(int sp, int tos) {
+        while (sp + 16 <= tos) {
+            sp += 16;
+            switch (m_arch) {
+            case Arch::x86_64: m_asm += "\taddq $16, %rsp\n"; break;
+            case Arch::ARM64: m_asm += "\tadd sp, sp, #16\n"; break;
+            }
+        }
+
+        return sp;
+    }
+
 private:
     void dispatch(Node *node);
 

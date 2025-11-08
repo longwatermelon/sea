@@ -39,14 +39,7 @@ void Visitor::tighten_stack() {
     if (dif==0) return;
 
     m_tos+=dif;
-
-    while (m_sp+16 <= m_tos) {
-        m_sp += 16;
-        switch (m_arch) {
-        case Arch::x86_64: m_asm += "\taddq $16, %rsp\n"; break;
-        case Arch::ARM64: m_asm += "\tadd sp, sp, #16\n"; break;
-        }
-    }
+    m_sp = tighten_sp(m_sp, m_tos);
 
     // switch (m_arch) {
     // case Arch::x86_64: m_asm += "\t# tighten_stack\n\taddq $"+std::to_string(dif)+", %rsp\n"; break;
@@ -822,14 +815,7 @@ void Visitor::visit(BreakNode *_) {
 
     // restore stack to loop entry state
     int target_tos = m_loop_tos.back();
-    int cur_sp = m_sp;
-    while (cur_sp + 16 <= target_tos) {
-        cur_sp += 16;
-        switch (m_arch) {
-        case Arch::x86_64: m_asm += "\taddq $16, %rsp\n"; break;
-        case Arch::ARM64: m_asm += "\tadd sp, sp, #16\n"; break;
-        }
-    }
+    tighten_sp(m_sp, target_tos);
 
     switch (m_arch) {
     case Arch::x86_64: m_asm += "\tjmp .L_end_" + std::to_string(m_loop_ids.back()) + "\n"; break;
@@ -844,14 +830,7 @@ void Visitor::visit(ContinueNode *_) {
 
     // restore stack to loop entry state
     int target_tos = m_loop_tos.back();
-    int cur_sp = m_sp;
-    while (cur_sp + 16 <= target_tos) {
-        cur_sp += 16;
-        switch (m_arch) {
-        case Arch::x86_64: m_asm += "\taddq $16, %rsp\n"; break;
-        case Arch::ARM64: m_asm += "\tadd sp, sp, #16\n"; break;
-        }
-    }
+    tighten_sp(m_sp, target_tos);
 
     switch (m_arch) {
     case Arch::x86_64: m_asm += "\tjmp .L_upd_" + std::to_string(m_loop_ids.back()) + "\n"; break;
