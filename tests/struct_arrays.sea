@@ -15,12 +15,12 @@ fn main() -> int {
     nodes[1].next_idx = 2;
 
     nodes[2].value = 300;
-    nodes[2].next_idx = -1;
+    nodes[2].next_idx = 0-1;
 
     let sum:int = 0;
     let idx:int = 0;
 
-    while (idx != -1) {
+    while (idx != 0-1) {
         sum = sum + nodes[idx].value;
         idx = nodes[idx].next_idx;
     }
