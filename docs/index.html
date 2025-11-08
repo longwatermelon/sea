@@ -81,13 +81,40 @@
     button.primary { background: #1b3a32; border-color: #25443d; }
     button.primary:hover { background: #1d4238; }
     button:hover { background: #232b3a; }
+    /* Editor + highlighter overlay */
+    .editor-wrap { position: relative; height: 100%; min-width: 0; }
+    .highlight {
+      position: absolute; inset: 0;
+      overflow: auto;
+      margin: 0;
+      background: #0b0e14;
+      color: var(--text);
+      padding: 12px 14px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 13px; line-height: 1.5;
+      white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere;
+      tab-size: 2;
+      pointer-events: none; /* allow textarea to receive input */
+    }
+    .highlight code { font: inherit; color: inherit; }
     .editor {
+      position: absolute; inset: 0;
       width: 100%; height: 100%;
       border: none; outline: none; resize: none;
-      background: #0b0e14; color: var(--text);
+      background: transparent; color: transparent; caret-color: var(--text);
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
       font-size: 13px; line-height: 1.5; padding: 12px 14px;
+      white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere;
+      tab-size: 2;
     }
+    /* Token colors (lightweight theme) */
+    .tok-comment { color: #5c6773; font-style: italic; }
+    .tok-string  { color: #ecc48d; }
+    .tok-char    { color: #ecc48d; }
+    .tok-number  { color: #f78c6c; }
+    .tok-keyword { color: #c792ea; }
+    .tok-type    { color: #82aaff; }
+    .tok-preproc { color: #89ddff; }
     .hint {
       color: var(--muted);
       font-size: 12px;
@@ -121,7 +148,10 @@
         <div class="spacer"></div>
         <span class="path" id="currentPath">examples/usaco_open25a.sea</span>
       </div>
-      <textarea id="editor" class="editor" spellcheck="false"></textarea>
+      <div class="editor-wrap">
+        <pre aria-hidden="true" class="highlight" id="highlight"><code></code></pre>
+        <textarea id="editor" class="editor" spellcheck="false"></textarea>
+      </div>
     </main>
   </div>
 
@@ -150,6 +180,8 @@
     ];
 
     const editor = document.getElementById('editor');
+    const highlightEl = document.getElementById('highlight');
+    const highlightCodeEl = highlightEl.querySelector('code');
     const currentPathEl = document.getElementById('currentPath');
     const compileBtn = document.getElementById('compileBtn');
     let currentPath = EXAMPLES[0];
@@ -199,18 +231,80 @@
       statusHint.textContent = wasmReady ? 'WASM ready — compiles in-browser' : 'WASM unavailable — compiler disabled';
     }
 
+    // --- Minimal Sea syntax highlighter (no external deps) ---
+    function escHtml(s) {
+      return s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    const RE_TOKEN = /\/\/[^\n]*|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])'|^\s*#.*$/gm;
+    const RE_NUM = /\b(?:0x[0-9a-fA-F]+|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\b/g;
+    const RE_KW = /\b(?:let|fn|return|if|else|for|while|break|continue|true|false)\b/g;
+    const RE_TYPE = /\b(?:int|byte|bool|char|void|struct|union|enum)\b/g;
+
+    function highlightPlain(segment) {
+      // order: types, keywords, numbers
+      let s = escHtml(segment);
+      s = s.replace(RE_TYPE, '<span class="tok-type">$&</span>');
+      s = s.replace(RE_KW, '<span class="tok-keyword">$&</span>');
+      s = s.replace(RE_NUM, '<span class="tok-number">$&</span>');
+      return s;
+    }
+
+    function highlightSea(src) {
+      let out = '';
+      let last = 0;
+      src = src || '';
+      RE_TOKEN.lastIndex = 0;
+      for (let m; (m = RE_TOKEN.exec(src)); ) {
+        const i = m.index;
+        if (i > last) out += highlightPlain(src.slice(last, i));
+        const tok = m[0];
+        if (tok.startsWith('//') || tok.startsWith('/*')) {
+          out += '<span class="tok-comment">' + escHtml(tok) + '</span>';
+        } else if (tok[0] === '"') {
+          out += '<span class="tok-string">' + escHtml(tok) + '</span>';
+        } else if (tok[0] === "'") {
+          out += '<span class="tok-char">' + escHtml(tok) + '</span>';
+        } else if (/^\s*#/.test(tok)) {
+          out += '<span class="tok-preproc">' + escHtml(tok) + '</span>';
+        } else {
+          out += escHtml(tok);
+        }
+        last = RE_TOKEN.lastIndex;
+      }
+      if (last < src.length) out += highlightPlain(src.slice(last));
+      // Ensure trailing newline renders a blank line like textarea does
+      if (src.endsWith('\n')) out += '\n';
+      return out;
+    }
+
+    function renderHighlight() {
+      highlightCodeEl.innerHTML = highlightSea(editor.value);
+    }
+
+    function syncScroll() {
+      highlightEl.scrollTop = editor.scrollTop;
+      highlightEl.scrollLeft = editor.scrollLeft;
+    }
+
     async function loadFile(path) {
       try {
         const res = await fetch(path);
         if (!res.ok) throw new Error('Failed to load ' + path);
         const txt = await res.text();
         editor.value = txt;
+        renderHighlight();
+        syncScroll();
         currentPath = path;
         currentPathEl.textContent = path;
         markActive(path);
         refreshCompileUI();
       } catch (err) {
         editor.value = '// Error: ' + err.message + '\n';
+        renderHighlight();
       }
     }
 
@@ -290,6 +384,8 @@
     }
 
     document.getElementById('compileBtn').addEventListener('click', compileAndDownload);
+    editor.addEventListener('input', () => { renderHighlight(); syncScroll(); });
+    editor.addEventListener('scroll', syncScroll);
 
     // Initialize
     buildLists();
