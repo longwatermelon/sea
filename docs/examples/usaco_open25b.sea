@@ -1,0 +1,119 @@
+#include "../lib/io.h"
+#include "../lib/malloc.h"
+#include "../lib/rbtree.h"
+
+fn change(cnt:int*, freq_mp:RbTree*, freqs:RbTree**, x:int, c:int) -> void {
+    let cur:int = cnt[x];
+    let curc:int = rbtree_get(freq_mp, cur);
+    curc = curc - 1;
+    if (curc==0) { rbtree_erase(freq_mp, cur); }
+    else { rbtree_set(freq_mp, cur, curc); }
+    if (cur>=1) { if (freqs[cur]!=0) { rbtree_erase(freqs[cur], x); } }
+    let ncur:int = cur + c;
+    cnt[x] = ncur;
+    let ncurc:int = rbtree_get(freq_mp, ncur);
+    ncurc = ncurc + 1;
+    rbtree_set(freq_mp, ncur, ncurc);
+    if (ncur>=1) {
+        if (freqs[ncur]==0) { freqs[ncur] = rbtree_new(); }
+        rbtree_set(freqs[ncur], x, 1);
+    }
+}
+
+fn main() -> int {
+    init_input();
+
+    let n:int = read_int();
+    let q:int = read_int();
+
+    // Use galloc for fixed-capacity arrays to avoid malloc overhead
+    let a:int* = galloc(200005, int);
+    for (let i:int = 0; i < n; i = i + 1) {
+        a[i] = read_int();
+    }
+
+    let cnt:int* = galloc(200005, int);
+    for (let i:int = 0; i <= n; i = i + 1) {
+        cnt[i] = 0;
+    }
+
+    for (let i:int = 0; i < n; i = i + 1) {
+        let v:int = a[i];
+        cnt[v] = cnt[v] + 1;
+    }
+
+    let freqs:RbTree** = galloc(200005, RbTree*);
+    for (let i:int = 0; i <= n; i = i + 1) { freqs[i] = 0; }
+
+    let freq_mp:RbTree* = rbtree_new();
+
+    let distinct_freqs:int* = galloc(200005, int);
+    // Reuse these per query (upper bound is <= distinct_freqs length)
+    let min_freq:int* = galloc(200005, int);
+    let max_freq:int* = galloc(200005, int);
+    let m:int = 0;
+    for (let i:int = 1; i <= n; i = i + 1) {
+        let f:int = cnt[i];
+        let cur:int = rbtree_get(freq_mp, f);
+        rbtree_set(freq_mp, f, cur+1);
+    }
+    for (let i:int = 1; i <= n; i = i + 1) {
+        let f:int = cnt[i];
+        if (f>=1) {
+            if (freqs[f]==0) { freqs[f] = rbtree_new(); }
+            rbtree_set(freqs[f], i, 1);
+        }
+    }
+
+    for (let qq:int = q; qq > 0; qq = qq - 1) {
+        let idx:int = read_int();
+        let x:int = read_int();
+        idx = idx - 1;
+
+        change(cnt, freq_mp, freqs, a[idx], 0-1);
+        a[idx] = x;
+        change(cnt, freq_mp, freqs, a[idx], 1);
+
+        let ans:int = 0;
+        
+        m = 0;
+        for (let node:RbNode* = rbtree_begin(freq_mp); node != 0; node = rbtree_next(node)) {
+            let fk:int = rbtree_node_key(node);
+            if (fk>0) { distinct_freqs[m] = fk; m = m + 1; }
+        }
+
+        if (m>0) {
+            let mode_freq:int = distinct_freqs[m-1];
+
+            for (let i:int = 0; i < m; i = i + 1) {
+                let f:int = distinct_freqs[i];
+                min_freq[i] = rbtree_min_key(freqs[f]);
+                max_freq[i] = rbtree_max_key(freqs[f]);
+            }
+
+            for (let i:int = m - 2; i >= 0; i = i - 1) {
+                if (max_freq[i] < max_freq[i+1]) {
+                    max_freq[i] = max_freq[i+1];
+                }
+            }
+
+            let r:int = m - 1;
+            for (let l:int = 0; l < m; l = l + 1) {
+                while (1) {
+                    if (r-1<0) { break; }
+                    if (distinct_freqs[r-1] + distinct_freqs[l] >= mode_freq) { r = r - 1; }
+                    else { break; }
+                }
+                let diff:int = max_freq[r] - min_freq[l];
+                if (diff<0) { diff = 0 - diff; }
+                if (diff>ans) { ans = diff; }
+            }
+        }
+        
+        print_int(ans);
+        print_char(10);
+    }
+
+    flush_output();
+    return 0;
+}

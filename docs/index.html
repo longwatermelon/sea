@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sea Playground</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #171a21;
+      --text: #e6e6e6;
+      --muted: #9aa3b2;
+      --accent: #5ad1e6;
+      --border: #262b36;
+      --green: #5be49b;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.4 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    .app {
+      height: 100%;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+    }
+    .sidebar {
+      border-right: 1px solid var(--border);
+      background: var(--panel);
+      padding: 12px;
+      overflow: auto;
+    }
+    .title {
+      font-weight: 600;
+      font-size: 14px;
+      margin: 2px 0 10px;
+      color: var(--muted);
+    }
+    details { margin-bottom: 10px; }
+    details > summary {
+      cursor: pointer;
+      list-style: none;
+      color: var(--text);
+      padding: 6px 6px;
+      border-radius: 6px;
+    }
+    details[open] > summary { background: #1d2230; }
+    .files { margin: 6px 4px 10px 14px; }
+    .file {
+      padding: 4px 6px;
+      border-radius: 6px;
+      cursor: pointer;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .file:hover { background: #1d2230; color: var(--text); }
+    .file.active { background: #243049; color: var(--text); }
+
+    .main {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-width: 0;
+    }
+    .toolbar {
+      display: flex; gap: 10px; align-items: center;
+      padding: 10px 12px; border-bottom: 1px solid var(--border);
+      background: #12161f;
+    }
+    .toolbar .spacer { flex: 1; }
+    .toolbar .path { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 12px; }
+    button {
+      background: #1f2937;
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button.primary { background: #1b3a32; border-color: #25443d; }
+    button.primary:hover { background: #1d4238; }
+    button:hover { background: #232b3a; }
+    .editor {
+      width: 100%; height: 100%;
+      border: none; outline: none; resize: none;
+      background: #0b0e14; color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 13px; line-height: 1.5; padding: 12px 14px;
+    }
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      margin-left: 8px;
+    }
+    .logo { color: var(--accent); font-weight: 600; }
+  </style>
+  <meta name="description" content="Sea language playground: browse examples and libraries, edit Sea code, and download a wrapper out.cpp like ojsubmit.sh produces.">
+  <meta name="robots" content="noindex">
+  <meta name="color-scheme" content="dark light">
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="title"><span class="logo">Sea</span> Playground</div>
+      <details open>
+        <summary>examples/</summary>
+        <div class="files" id="examples-list"></div>
+      </details>
+      <details>
+        <summary>lib/</summary>
+        <div class="files" id="lib-list"></div>
+      </details>
+      <div class="hint">Click a file to load it into the editor.</div>
+    </aside>
+    <main class="main">
+      <div class="toolbar">
+        <button class="primary" id="compileBtn">Compile + Download out.cpp</button>
+        <button id="downloadBtn">Download placeholder out.cpp</button>
+        <span class="hint" id="statusHint">WASM unavailable — using placeholder flow</span>
+        <div class="spacer"></div>
+        <span class="path" id="currentPath">examples/usaco_open25a.sea</span>
+      </div>
+      <textarea id="editor" class="editor" spellcheck="false"></textarea>
+    </main>
+  </div>
+
+  <script>
+    // File lists mirrored into docs/ for simple fetch() access
+    const EXAMPLES = [
+      "examples/usaco_open25a.sea",
+      "examples/usaco_open25b.sea",
+      "examples/usaco_open25c.sea",
+    ];
+    const LIB_FILES = [
+      "lib/heap.h",
+      "lib/heap.sea",
+      "lib/io.h",
+      "lib/io.sea",
+      "lib/malloc.h",
+      "lib/malloc.sea",
+      "lib/quicksort.h",
+      "lib/quicksort.sea",
+      "lib/rbtree.h",
+      "lib/rbtree.sea",
+      "lib/set.h",
+      "lib/set.sea",
+      "lib/util.h",
+      "lib/util.sea",
+    ];
+
+    const editor = document.getElementById('editor');
+    const currentPathEl = document.getElementById('currentPath');
+    let currentPath = EXAMPLES[0];
+
+    function el(tag, cls, text) {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text) e.textContent = text;
+      return e;
+    }
+
+    function makeFileItem(path) {
+      const name = path.split('/').pop();
+      const div = el('div', 'file');
+      div.textContent = name;
+      div.title = path;
+      div.dataset.path = path;
+      div.addEventListener('click', () => loadFile(path));
+      return div;
+    }
+
+    function buildLists() {
+      const exList = document.getElementById('examples-list');
+      const libList = document.getElementById('lib-list');
+      for (const p of EXAMPLES) exList.appendChild(makeFileItem(p));
+      for (const p of LIB_FILES) libList.appendChild(makeFileItem(p));
+      markActive(currentPath);
+    }
+
+    function markActive(path) {
+      for (const n of document.querySelectorAll('.file')) n.classList.remove('active');
+      const match = Array.from(document.querySelectorAll('.file')).find(n => n.dataset.path === path);
+      if (match) match.classList.add('active');
+    }
+
+    async function loadFile(path) {
+      try {
+        const res = await fetch(path);
+        if (!res.ok) throw new Error('Failed to load ' + path);
+        const txt = await res.text();
+        editor.value = txt;
+        currentPath = path;
+        currentPathEl.textContent = path;
+        markActive(path);
+      } catch (err) {
+        editor.value = '// Error: ' + err.message + '\n';
+      }
+    }
+
+    function makeOutCppFromAsm(asmText, sourceText) {
+      const safeSource = (sourceText || '').replace(/\*\//g, '* /');
+      const safeAsm = (asmText || '').replace(/\)\"\);/g, ')" );');
+      const lines = [
+        '// out.cpp generated by Sea Playground',
+        '// Contents below are produced by the Sea compiler with --bundle.',
+        '',
+        'asm(R"(',
+        safeAsm,
+        ')");',
+        '',
+        '/* SEA_SOURCE (for reference only):',
+        safeSource,
+        '*/',
+        ''
+      ];
+      return lines.join('\n');
+    }
+
+    function downloadBlob(name, text, mime = 'text/plain') {
+      const blob = new Blob([text], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = name; document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
+    }
+
+    function downloadOutCpp() {
+      const source = editor.value || '';
+      const safeSource = source.replace(/\*\//g, '* /'); // naive safety for closing comment
+      const lines = [
+        '// out.cpp generated by Sea Playground (static, no in-browser compile)',
+        '// To generate real assembly, run the Sea compiler locally and paste the .s into asm(R"(…)") below.',
+        '',
+        'asm(R"(',
+        '/* Placeholder: paste contents of .sea_out.s here.',
+        '   Example:',
+        '     ./a.out input.sea lib/rbtree.sea lib/io.sea lib/util.sea lib/malloc.sea \\ ',
+        '       --bundle -o .sea_out.s -arch "x86-64" --no-entry',
+        '*/',
+        ')");',
+        '',
+        '/* SEA_SOURCE (for reference only):',
+        safeSource,
+        '*/',
+        ''
+      ];
+      downloadBlob('out.cpp', lines.join('\n'), 'text/x-c++src');
+    }
+
+    document.getElementById('downloadBtn').addEventListener('click', downloadOutCpp);
+
+    // WASM compile integration via Worker (sea-worker.js)
+    let worker = null;
+    let wasmReady = false;
+    const statusHint = document.getElementById('statusHint');
+
+    function enableWasmUI(ready) {
+      wasmReady = ready;
+      statusHint.textContent = ready ? 'WASM ready — compiles in-browser' : 'WASM unavailable — using placeholder flow';
+      document.getElementById('compileBtn').disabled = !ready;
+    }
+
+    async function startWorker() {
+      try {
+        worker = new Worker('sea-worker.js');
+      } catch (e) {
+        enableWasmUI(false);
+        return;
+      }
+      worker.onmessage = (ev) => {
+        const { type, ok, msg, asmText } = ev.data || {};
+        if (type === 'init') {
+          enableWasmUI(!!ok);
+          if (!ok && msg) console.warn(msg);
+        } else if (type === 'compile') {
+          if (ok) {
+            const outcpp = makeOutCppFromAsm(asmText, editor.value);
+            downloadBlob('out.cpp', outcpp, 'text/x-c++src');
+          } else {
+            alert('Compile failed: ' + (msg || 'unknown error'));
+          }
+        }
+      };
+      worker.postMessage({ type: 'init', libs: LIB_FILES });
+    }
+
+    async function compileAndDownload() {
+      if (!wasmReady || !worker) { return downloadOutCpp(); }
+      // Pick a stable virtual path based on the selected example name
+      const base = currentPath.includes('/') ? currentPath.split('/').pop() : 'main.sea';
+      worker.postMessage({ type: 'compile', path: `examples/${base}`, text: editor.value, libs: LIB_FILES });
+    }
+
+    document.getElementById('compileBtn').addEventListener('click', compileAndDownload);
+
+    // Initialize
+    buildLists();
+    loadFile(currentPath);
+    startWorker();
+  </script>
+</body>
+</html>

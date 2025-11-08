@@ -1,0 +1,77 @@
+#include "util.h"
+
+let HEAP_CAP:int = 64777216;
+let HEAP:byte* = galloc(64777216, byte);
+let heap_top:int = 0;
+
+let ALIGN:int = 8;
+let HDR:int = 8;
+
+fn align_up(x:int, a:int) -> int {
+    let y:int = x + a - 1;
+    return y - (y % a);
+}
+
+fn memcpy(dst:byte*, src:byte*, n:int) -> void {
+    let i:int = 0;
+    while (i<n) {
+        dst[i] = src[i];
+        i = i + 1;
+    }
+}
+
+fn malloc(n:int) -> byte* {
+    if (n<=0) { return 0; }
+
+    let off:int = align_up(heap_top, ALIGN);
+    let need:int = HDR + n;
+    if (off + need > HEAP_CAP) { return 0; }
+
+    let hdr:int* = HEAP + off;
+    *hdr = n;
+
+    heap_top = off + need;
+    return (HEAP + off) + HDR;
+}
+
+fn free(p:byte*) -> void {
+    if (p==0) { return 0; }
+
+    let hdrp:byte* = p - HDR;
+    let sz:int* = hdrp;
+    let n:int = *sz;
+
+    if ((p + n) == (HEAP + heap_top)) {
+        heap_top = heap_top - (HDR + n);
+    }
+}
+
+fn realloc(p:byte*, n:int) -> byte* {
+    if (p==0) { return malloc(n); }
+    if (n==0) { free(p); return 0; }
+
+    let hdrp:byte* = p - HDR;
+    let old_sz:int* = hdrp;
+    let m:int = *old_sz;
+
+    if ((p + m) == (HEAP + heap_top)) {
+        let off:int = heap_top - (HDR + m);
+        let need:int = HDR + n;
+        if (off + need <= HEAP_CAP) {
+            let hdr:int* = HEAP + off;
+            *hdr = n;
+            heap_top = off + need;
+            return (HEAP + off) + HDR;
+        }
+    }
+
+    let q:byte* = malloc(n);
+    if (q==0) { return 0; }
+    memcpy(q, p, min(m, n));
+    free(p);
+    return q;
+}
+
+fn arena_reset() -> void {
+    heap_top = 0;
+}

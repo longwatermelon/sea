@@ -1,0 +1,49 @@
+// Thin wrappers around the generic RB-tree storing (key,val),
+// with Set using a dummy value per key.
+#include "set.h"
+#include "rbtree.h"
+#include "malloc.h"
+
+fn set_new() -> Set* {
+    let s:Set* = malloc(1*sizeof(int));
+    if (s==0) { return 0; }
+    (*s).tree = rbtree_new();
+    return s;
+}
+
+fn set_free(s:Set*) -> void {
+    if (s==0) { return 0; }
+    if ((*s).tree!=0) { rbtree_free((*s).tree); }
+    free(s);
+}
+
+fn set_size(s:Set*) -> int {
+    if (s==0) { return 0; }
+    return rbtree_size((*s).tree);
+}
+
+fn set_contains(s:Set*, x:int) -> int {
+    if (s==0) { return 0; }
+    return rbtree_contains((*s).tree, x);
+}
+
+fn set_insert(s:Set*, x:int) -> int {
+    if (s==0) { return 0; }
+    // store dummy value 1 for present keys
+    return rbtree_set((*s).tree, x, 1);
+}
+
+fn set_erase(s:Set*, x:int) -> int {
+    if (s==0) { return 0; }
+    return rbtree_erase((*s).tree, x);
+}
+
+fn set_min(s:Set*) -> int {
+    if (s==0) { return 0; }
+    return rbtree_min_key((*s).tree);
+}
+
+fn set_max(s:Set*) -> int {
+    if (s==0) { return 0; }
+    return rbtree_max_key((*s).tree);
+}

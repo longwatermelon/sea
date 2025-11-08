@@ -1,0 +1,33 @@
+fn swap(x:int*, y:int*) -> void {
+    let t:int = *x;
+    *x = *y;
+    *y = t;
+}
+
+fn qsort_rec(arr:int*, lo:int, hi:int) -> void {
+    if (lo>=hi) { return 0; }
+
+    let i:int = lo;
+    let j:int = hi;
+    let mid:int = lo + (hi - lo)/2;
+    let pivot:int = arr[mid];
+
+    while (i<=j) {
+        while (arr[i] < pivot) { i = i + 1; }
+        while (arr[j] > pivot) { j = j - 1; }
+        if (i<=j) {
+            swap(arr + i, arr + j);
+            i = i + 1;
+            j = j - 1;
+        }
+    }
+
+    if (lo < j) { qsort_rec(arr, lo, j); }
+    if (i < hi) { qsort_rec(arr, i, hi); }
+}
+
+fn quicksort(arr:int*, n:int) -> void {
+    if (n<=1) { return 0; }
+    qsort_rec(arr, 0, n-1);
+}
+

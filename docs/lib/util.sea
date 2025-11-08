@@ -1,0 +1,19 @@
+fn min(a:int, b:int) -> int {
+    if (a<b) { return a; }
+    else { return b; }
+}
+
+fn max(a:int, b:int) -> int {
+    if (a>b) { return a; }
+    else { return b; }
+}
+
+fn abs_int(x:int) -> int {
+    if (x<0) { return 0-x; }
+    return x;
+}
+
+fn ceil_div(a:int, b:int) -> int {
+    return (a + b - 1) / b;
+}
+
