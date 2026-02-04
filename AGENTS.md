@@ -20,11 +20,6 @@ Sea is a self-hosting C compiler built from modular components in `src/`. Each m
 - Run `./run.sh` before sending changes; add targeted `.sea` cases whenever you introduce new syntax or codegen paths.
 - For exploratory checks, you can invoke `./a.out examples/cf.sea` and inspect the generated assembly in `sea.out`.
 
-## Commit & Pull Request Guidelines
-- Mirror the concise, present-tense commit titles in history (e.g., `fix stalloc bug`) and keep body text for rationale or follow-ups.
-- Reference related issues in the description, outline manual testing (`./run.sh`), and attach diffs or assembly snippets when behavior changes.
-- Flag any new dependencies or scripts in the PR and state whether artifacts like `sea.out` were regenerated.
-
 ## Security & Configuration Tips
 - The compiler shells out to system `as`/`ld`; confirm those toolchains exist before shipping scripts.
 - Avoid checking in environment-specific files (IDE caches, generated assembly) to keep builds reproducible.
