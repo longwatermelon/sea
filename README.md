@@ -22,3 +22,6 @@ File structure:
   * `src/`: sea compiler source code.
   * `tests/`: `.sea` programs & their expected output.
 
+## Build & run
+
+
