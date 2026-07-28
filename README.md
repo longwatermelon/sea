@@ -24,4 +24,9 @@ File structure:
 
 ## Build & run
 
+Requirements: a C++17 compiler (`g++`) and the system `as`/`ld` toolchain, which the compiler shells out to for assembling and linking.
+  * `make`: builds the compiler to `./a.out`.
+  * `./a.out <list of sea files> [-o <output path, default sea.out>] [-b <build dir, default .sea>] [-arch <x86-64|aarch64>] [--bundle] [--no-entry]`: compiles a `.sea` program to an output executable; run it with `./sea.out` (or whatever the output is specified as).
+  * `./run.sh`: runs all regression tests in `tests/`, comparing each `.sea` program against its `.out` file's `RETURN_CODE:` and `STDOUT:` expectations.
+  * `make clean`: removes `obj/` and generated executables.
 
